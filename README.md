@@ -29,7 +29,7 @@ Este projeto é o alicerce (MVP) para um ecossistema maior de gestão de obras. 
 4.  **Inteligência de Dados:** Análise de métricas para refinar orçamentos futuros (Orçado vs. Realizado).
 
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 * **Backend:** Python, Django 5
 * **Frontend:** HTML5, TailwindCSS (via CDN), JavaScript (Vanilla + jQuery)
@@ -40,9 +40,9 @@ Este projeto é o alicerce (MVP) para um ecossistema maior de gestão de obras. 
 ## Como Executar o Projeto
 
 1. **Clone o repositório:**
-    ```bash
-   git clone [https://github.com/SEU-USUARIO/sistema-apontamento-obras.git](https://github.com/SEU-USUARIO/sistema-apontamento-obras.git)
-   cd sistema-apontamento-obras
+   ```bash
+   git clone [https://github.com/GFerreira019/sistema-gestao-obras.git](https://github.com/GFerreira019/sistema-gestao-obras.git)
+   cd sistema-gestao-obras
 
 2. **Crie e ative um ambiente virtual:**
     ```bash
