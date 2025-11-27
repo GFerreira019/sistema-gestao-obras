@@ -128,7 +128,7 @@ class ApontamentoForm(forms.ModelForm):
         choices.append(('OUTRO', 'OUTRO (Cadastrar Novo)'))
         self.fields['veiculo_selecao'].choices = choices
 
-        # --- Limpeza de Opções do Tangerino ---
+        # --- Início da Jornada ---
         choices_tang = list(self.fields['local_inicio_jornada'].choices)
         self.fields['local_inicio_jornada'].choices = [c for c in choices_tang if c[0] != '']
 
@@ -138,38 +138,50 @@ class ApontamentoForm(forms.ModelForm):
         if self.user:
             is_owner = self.user.is_superuser
             is_gestor = self.user.groups.filter(name='GESTOR').exists()
-            is_admin = self.user.groups.filter(name='ADMINISTRATIVO').exists() # Novo Grupo
+            is_admin = self.user.groups.filter(name='ADMINISTRATIVO').exists()
             
-            # --- 1. OWNER (Vê tudo) ---
+            # --- 1. OWNER (Vê tudo e edita tudo) ---
             if is_owner:
                 self.fields['colaborador'].queryset = Colaborador.objects.all()
-            
-            # --- 2. GESTOR ou ADMINISTRATIVO (Vê setores gerenciados + o próprio) ---
-            elif is_gestor or is_admin:
+                
+            # --- 2. ADMINISTRATIVO (Pode enviar para setor, campo EDITÁVEL) ---
+            elif is_admin:
                 try:
                     colaborador_logado = Colaborador.objects.get(user_account=self.user)
-                    
-                    # Pega os setores que ele gerencia (campo ManyToMany que criamos)
                     setores_permitidos = colaborador_logado.setores_gerenciados.all()
                     
-                    # Se ele gerencia setores, mostra colaboradores desses setores
                     if setores_permitidos.exists():
+                        # Permite selecionar colaboradores dos setores gerenciados + o próprio Admin
                         qs = Colaborador.objects.filter(setor__in=setores_permitidos)
-                        # Inclui a si mesmo na lista caso não esteja no setor que gerencia
                         qs = qs | Colaborador.objects.filter(pk=colaborador_logado.pk)
                         self.fields['colaborador'].queryset = qs.distinct()
                     else:
-                        # Se não tiver setores configurados, vê apenas a si mesmo (fallback)
+                        # Fallback: Se não gerencia setores, só vê a si mesmo, mas pode editar
                         self.fields['colaborador'].queryset = Colaborador.objects.filter(pk=colaborador_logado.pk)
-                        self.initial['colaborador'] = colaborador_logado
-                        self.initial['cargo_colaborador'] = colaborador_logado.cargo
+                    
+                    # Pré-preenche o próprio cargo
+                    self.initial['cargo_colaborador'] = colaborador_logado.cargo
                 
                 except Colaborador.DoesNotExist:
-                    # Se usuário tem login mas não tem cadastro de Colaborador vinculado
                     self.fields['colaborador'].queryset = Colaborador.objects.none()
 
-            # --- 3. OPERACIONAL (Vê apenas a si mesmo) ---
-            else:
+            # --- 3. GESTOR (Só pode enviar para si, campo TRAVADO) ---
+            elif is_gestor:
+                try:
+                    colaborador_logado = Colaborador.objects.get(user_account=self.user)
+                    
+                    # O GESTOR TEM VISIBILIDADE AMPLA (ver history), mas o formulário é restrito a si.
+                    # Trava o campo e pré-seleciona (Igual ao Operacional)
+                    self.initial['colaborador'] = colaborador_logado
+                    self.initial['cargo_colaborador'] = colaborador_logado.cargo
+
+                    self._lock_colaborador_field(colaborador_logado)
+                    
+                except Colaborador.DoesNotExist:
+                    self.fields['colaborador'].queryset = Colaborador.objects.none()
+
+            # --- 4. OPERACIONAL (Só pode enviar para si, campo TRAVADO) ---
+            else: # Inclui o Coordenador antigo e Operacional
                 try:
                     colaborador_logado = Colaborador.objects.get(user_account=self.user)
                     
@@ -177,14 +189,7 @@ class ApontamentoForm(forms.ModelForm):
                     self.initial['colaborador'] = colaborador_logado
                     self.initial['cargo_colaborador'] = colaborador_logado.cargo
 
-                    # Aplica bloqueio visual
-                    self.fields['colaborador'].widget.attrs.update({
-                        'class': 'form-control pointer-events-none bg-slate-700 text-gray-400 cursor-not-allowed',
-                        'tabindex': '-1'
-                    })
-                    
-                    self.fields['colaborador'].queryset = Colaborador.objects.filter(pk=colaborador_logado.pk)
-                    self.fields['colaborador'].empty_label = None 
+                    self._lock_colaborador_field(colaborador_logado)
                     
                 except Colaborador.DoesNotExist:
                     self.fields['colaborador'].queryset = Colaborador.objects.none()
@@ -201,6 +206,15 @@ class ApontamentoForm(forms.ModelForm):
                     field.widget.attrs.update({'class': 'form-control'})
                 elif 'form-control' not in field.widget.attrs['class']:
                      field.widget.attrs['class'] += ' form-control'
+    
+    # --- Método para travar o campo do colaborador para GESTOR e OPERACIONAL  ---
+    def _lock_colaborador_field(self, colaborador_logado):
+        self.fields['colaborador'].widget.attrs.update({
+            'class': 'form-control pointer-events-none bg-slate-700 text-gray-400 cursor-not-allowed',
+            'tabindex': '-1'
+        })
+        self.fields['colaborador'].queryset = Colaborador.objects.filter(pk=colaborador_logado.pk)
+        self.fields['colaborador'].empty_label = None
 
     def clean(self):
         """
@@ -229,7 +243,7 @@ class ApontamentoForm(forms.ModelForm):
 
             cleaned_data['setor'] = None
             
-            # Validação Tangerino
+            # Validação de Início da Jornada no Tangerino
             if tangerino == 'OUT' and not tangerino_obs:
                 self.add_error('local_inicio_jornada_outros', "Especifique o local para 'Outros'.")
             
