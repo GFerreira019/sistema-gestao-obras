@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Projeto, Colaborador, Veiculo, Apontamento, Setor
+from .models import Projeto, Colaborador, Veiculo, Apontamento, Setor, CodigoCliente
 
 # ==============================================================================
 # CADASTROS AUXILIARES
@@ -8,7 +8,7 @@ from .models import Projeto, Colaborador, Veiculo, Apontamento, Setor
 
 @admin.register(Setor)
 class SetorAdmin(admin.ModelAdmin):
-    """Gerenciamento de Setores/Departamentos (ex: Manutenção, ADM)."""
+    """Gerenciamento de Setores/Departamentos (ex: Oficina, ADM)."""
     list_display = ('nome', 'ativo')
     search_fields = ('nome',)
 
@@ -21,12 +21,29 @@ class ProjetoAdmin(admin.ModelAdmin):
     list_filter = ('ativo',)
 
 
+@admin.register(CodigoCliente)
+class CodigoClienteAdmin(admin.ModelAdmin):
+    """Gerenciamento de Códigos de Cliente (4 dígitos)."""
+    list_display = ('codigo', 'nome', 'ativo')
+    search_fields = ('codigo', 'nome')
+    list_filter = ('ativo',)
+
+
 @admin.register(Colaborador)
 class ColaboradorAdmin(admin.ModelAdmin):
-    """Cadastro de funcionários e prestadores de serviço."""
-    list_display = ('id_colaborador', 'nome_completo', 'cargo')
+    """
+    Cadastro de funcionários e prestadores de serviço. 
+    Permite vincular o colaborador à conta de usuário (login) e definir seu setor de alocação.
+    """
+    list_display = ('id_colaborador', 'nome_completo', 'cargo', 'setor', 'user_account')
     search_fields = ('nome_completo', 'id_colaborador')
-    list_filter = ('cargo',)
+    list_filter = ('cargo', 'setor')
+    
+    # Adicionado 'setores_gerenciados' para permitir a configuração de gestores/admins
+    fields = ('id_colaborador', 'nome_completo', 'cargo', 'setor', 'setores_gerenciados', 'user_account')
+    
+    # Cria uma interface visual melhor para selecionar múltiplos setores
+    filter_horizontal = ('setores_gerenciados',)
 
 
 @admin.register(Veiculo)
@@ -45,21 +62,22 @@ class VeiculoAdmin(admin.ModelAdmin):
 class ApontamentoAdmin(admin.ModelAdmin):
     """
     Visão geral dos apontamentos de produtividade.
-    Inclui colunas dinâmicas para exibir o local (Obra ou Setor) corretamente.
+    Exibe colunas dinâmicas para exibir o local (Obra ou Setor) e o status do registro.
     """
     list_display = (
         'data_apontamento',
         'colaborador',
-        'get_tipo_local',      # Método customizado
-        'get_detalhe_local',   # Método customizado
+        'get_tipo_local',       # Método customizado
+        'get_detalhe_local',    # Método customizado
         'hora_inicio',
         'hora_termino'
     )
 
     list_filter = (
         'data_apontamento',
-        'local_execucao',      # Filtra por Dentro/Fora da obra
+        'local_execucao',       # Filtra por Dentro/Fora da obra
         'projeto',
+        'codigo_cliente',
         'setor',
         'colaborador'
     )
@@ -68,6 +86,7 @@ class ApontamentoAdmin(admin.ModelAdmin):
     search_fields = (
         'colaborador__nome_completo',
         'projeto__nome',
+        'codigo_cliente__nome',
         'setor__nome'
     )
 
@@ -79,13 +98,13 @@ class ApontamentoAdmin(admin.ModelAdmin):
     get_tipo_local.short_description = "Tipo"
 
     def get_detalhe_local(self, obj):
-        """
-        Exibe condicionalmente o nome da Obra ou do Setor,
-        dependendo do tipo de local selecionado.
-        """
         if obj.local_execucao == 'INT':
-            return obj.projeto if obj.projeto else "-"
+            if obj.projeto:
+                return f"Obra: {obj.projeto}"
+            elif obj.codigo_cliente:
+                return f"Cli: {obj.codigo_cliente}"
+            return "—"
         elif obj.local_execucao == 'EXT':
-            return obj.setor if obj.setor else "-"
-        return "-"
-    get_detalhe_local.short_description = "Obra / Setor"
+            return obj.setor if obj.setor else "—"
+        return "—"
+    get_detalhe_local.short_description = "Obra / Cliente / Setor"

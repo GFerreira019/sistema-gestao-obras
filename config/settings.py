@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-x#*#@+qn#-vqqiyiudapl8uozjjzc(*dvt^&i*7k#_05at7%n0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -104,9 +104,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br' # Alterado para Português
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo' # Alterado para horário de Brasília
 
 USE_I18N = True
 
@@ -125,4 +125,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-LOGIN_REDIRECT_URL = '/produtividade/apontamento/novo/'
+# --- CONFIGURAÇÕES DE REDIRECIONAMENTO ---
+# 'home' é o nome da rota que definimos em urls.py que decide o destino (Gestor vs Operacional)
+LOGIN_REDIRECT_URL = 'home' 
+
+# Para onde ir após clicar em Sair (volta para a tela de login)
+LOGOUT_REDIRECT_URL = 'login'

@@ -1,23 +1,29 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Apontamento, Colaborador, Veiculo, Projeto, Setor
+from django.contrib.auth.models import User
+from .models import Apontamento, Colaborador, Veiculo, Projeto, Setor, CodigoCliente
 
 class ApontamentoForm(forms.ModelForm):
     """
     Formulário principal para registro de apontamentos de produtividade.
-    Gerencia lógica condicional para Veículos (Frota vs Manual), 
-    Auxiliares (Principal + Extras) e Local de Trabalho (Obra vs Setor).
+    
+    Funcionalidades:
+    - Gerencia lógica condicional para Veículos (Frota vs Manual).
+    - Gerencia Auxiliares (Principal + Extras).
+    - Adapta campos com base no Local de Trabalho (Obra vs Setor).
+    - Implementa controle de acesso (RBAC) bloqueando campos para usuários Operacionais.
     """
 
     # ==========================================================================
     # CAMPOS VISUAIS E READ-ONLY
     # ==========================================================================
-    nome_projeto = forms.CharField(
-        required=False, 
-        disabled=True, 
-        label="Nome da Obra", 
-        initial="Aguardando seleção..."
+    codigo_cliente = forms.ModelChoiceField(
+        queryset=CodigoCliente.objects.filter(ativo=True),
+        required=False,
+        label="Código do Cliente",
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
+
     cargo_colaborador = forms.CharField(
         required=False, 
         disabled=True, 
@@ -27,7 +33,6 @@ class ApontamentoForm(forms.ModelForm):
 
     # ==========================================================================
     # GESTÃO DE VEÍCULOS
-    # Permite selecionar da frota ou cadastrar manualmente ('OUTRO')
     # ==========================================================================
     registrar_veiculo = forms.BooleanField(
         required=False, 
@@ -60,7 +65,6 @@ class ApontamentoForm(forms.ModelForm):
 
     # ==========================================================================
     # GESTÃO DE AUXILIARES
-    # Permite selecionar Auxiliar Principal e lista oculta de Extras
     # ==========================================================================
     registrar_auxiliar = forms.BooleanField(
         required=False, 
@@ -86,7 +90,7 @@ class ApontamentoForm(forms.ModelForm):
         model = Apontamento
         fields = [
             'colaborador', 'data_apontamento', 'local_execucao',
-            'projeto', 'local_inicio_jornada', 'local_inicio_jornada_outros',
+            'projeto', 'codigo_cliente', 'local_inicio_jornada', 'local_inicio_jornada_outros',
             'setor', 'hora_inicio', 'hora_termino', 'ocorrencias',
             # Campos manuais precisam estar aqui para salvamento automático
             'veiculo_manual_modelo', 'veiculo_manual_placa'
@@ -105,11 +109,17 @@ class ApontamentoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Sobrescreve o init para aplicar lógica de acesso baseada no Perfil (Owner, Admin, Gestor, Operacional).
+        """
+        self.user = kwargs.pop('user', None)
+        
         super().__init__(*args, **kwargs)
         
-        # Filtros para garantir que apenas ativos apareçam
+        # --- Filtros Iniciais ---
         self.fields['projeto'].queryset = Projeto.objects.filter(ativo=True)
         self.fields['setor'].queryset = Setor.objects.filter(ativo=True)
+        self.fields['codigo_cliente'].queryset = CodigoCliente.objects.filter(ativo=True)
         
         # --- Popula Campo de Veículo (Híbrido) ---
         veiculos_db = Veiculo.objects.all()
@@ -119,19 +129,78 @@ class ApontamentoForm(forms.ModelForm):
         self.fields['veiculo_selecao'].choices = choices
 
         # --- Limpeza de Opções do Tangerino ---
-        # Remove a opção vazia "---------" gerada por padrão
         choices_tang = list(self.fields['local_inicio_jornada'].choices)
         self.fields['local_inicio_jornada'].choices = [c for c in choices_tang if c[0] != '']
 
-        # Define obrigatoriedade de campos base
+        # ==============================================================================
+        # LÓGICA DE ACESSO AO CAMPO 'COLABORADOR' (RBAC)
+        # ==============================================================================
+        if self.user:
+            is_owner = self.user.is_superuser
+            is_gestor = self.user.groups.filter(name='GESTOR').exists()
+            is_admin = self.user.groups.filter(name='ADMINISTRATIVO').exists() # Novo Grupo
+            
+            # --- 1. OWNER (Vê tudo) ---
+            if is_owner:
+                self.fields['colaborador'].queryset = Colaborador.objects.all()
+            
+            # --- 2. GESTOR ou ADMINISTRATIVO (Vê setores gerenciados + o próprio) ---
+            elif is_gestor or is_admin:
+                try:
+                    colaborador_logado = Colaborador.objects.get(user_account=self.user)
+                    
+                    # Pega os setores que ele gerencia (campo ManyToMany que criamos)
+                    setores_permitidos = colaborador_logado.setores_gerenciados.all()
+                    
+                    # Se ele gerencia setores, mostra colaboradores desses setores
+                    if setores_permitidos.exists():
+                        qs = Colaborador.objects.filter(setor__in=setores_permitidos)
+                        # Inclui a si mesmo na lista caso não esteja no setor que gerencia
+                        qs = qs | Colaborador.objects.filter(pk=colaborador_logado.pk)
+                        self.fields['colaborador'].queryset = qs.distinct()
+                    else:
+                        # Se não tiver setores configurados, vê apenas a si mesmo (fallback)
+                        self.fields['colaborador'].queryset = Colaborador.objects.filter(pk=colaborador_logado.pk)
+                        self.initial['colaborador'] = colaborador_logado
+                        self.initial['cargo_colaborador'] = colaborador_logado.cargo
+                
+                except Colaborador.DoesNotExist:
+                    # Se usuário tem login mas não tem cadastro de Colaborador vinculado
+                    self.fields['colaborador'].queryset = Colaborador.objects.none()
+
+            # --- 3. OPERACIONAL (Vê apenas a si mesmo) ---
+            else:
+                try:
+                    colaborador_logado = Colaborador.objects.get(user_account=self.user)
+                    
+                    # Trava o campo e pré-seleciona
+                    self.initial['colaborador'] = colaborador_logado
+                    self.initial['cargo_colaborador'] = colaborador_logado.cargo
+
+                    # Aplica bloqueio visual
+                    self.fields['colaborador'].widget.attrs.update({
+                        'class': 'form-control pointer-events-none bg-slate-700 text-gray-400 cursor-not-allowed',
+                        'tabindex': '-1'
+                    })
+                    
+                    self.fields['colaborador'].queryset = Colaborador.objects.filter(pk=colaborador_logado.pk)
+                    self.fields['colaborador'].empty_label = None 
+                    
+                except Colaborador.DoesNotExist:
+                    self.fields['colaborador'].queryset = Colaborador.objects.none()
+
+        # Define obrigatoriedade
         self.fields['colaborador'].required = True
         self.fields['hora_inicio'].required = True
         self.fields['hora_termino'].required = True
 
-        # Aplica classe CSS padrão em todos os campos (exceto checkboxes/radios)
+        # CSS Padrão
         for name, field in self.fields.items():
             if name not in ['registrar_veiculo', 'registrar_auxiliar', 'local_inicio_jornada']:
-                field.widget.attrs.update({'class': 'form-control'})
+                if 'class' not in field.widget.attrs:
+                    field.widget.attrs.update({'class': 'form-control'})
+                elif 'form-control' not in field.widget.attrs['class']:
+                     field.widget.attrs['class'] += ' form-control'
 
     def clean(self):
         """
@@ -142,30 +211,40 @@ class ApontamentoForm(forms.ModelForm):
         # --- 1. Validação de Local (Obra vs Setor) ---
         local = cleaned_data.get('local_execucao')
         projeto = cleaned_data.get('projeto')
+        cod_cliente = cleaned_data.get('codigo_cliente')
         setor = cleaned_data.get('setor')
         tangerino = cleaned_data.get('local_inicio_jornada')
         tangerino_obs = cleaned_data.get('local_inicio_jornada_outros')
 
         if local == 'INT': # Dentro da Obra
-            if not projeto:
-                self.add_error('projeto', "Selecione o Código da Obra.")
+            # Lógica de Exclusividade: Não pode ter ambos
+            if projeto and cod_cliente:
+                self.add_error('projeto', "Selecione apenas o Código da Obra ou o Código do Cliente, não ambos.")
+                self.add_error('codigo_cliente', "Selecione apenas o Código da Obra ou o Código do Cliente, não ambos.")
+            
+            # Lógica de Obrigatoriedade: Tem que ter pelo menos um
+            if not projeto and not cod_cliente:
+                self.add_error('projeto', "Se não houver Obra Específica, selecione o Código do Cliente.")
+                self.add_error('codigo_cliente', "Se não houver Obra Específica, selecione o Código do Cliente.")
+
             cleaned_data['setor'] = None
             
             # Validação Tangerino
             if tangerino == 'OUT' and not tangerino_obs:
                 self.add_error('local_inicio_jornada_outros', "Especifique o local para 'Outros'.")
             
-            # Limpa obs se não for 'Outros'
             if tangerino != 'OUT': 
                 cleaned_data['local_inicio_jornada_outros'] = ""
                 
         elif local == 'EXT': # Fora da Obra
             if not setor:
                 self.add_error('setor', "Selecione o Setor.")
-            # Limpa campos de obra
+            # Limpa campos de obra e cliente
             cleaned_data['projeto'] = None
+            cleaned_data['codigo_cliente'] = None
             cleaned_data['local_inicio_jornada'] = None
             self.instance.projeto = None
+            self.instance.codigo_cliente = None
 
         # --- 2. Validação de Horário ---
         inicio = cleaned_data.get('hora_inicio')

@@ -5,8 +5,15 @@ urlpatterns = [
     # Redireciona para o novo apontamento
     path('', views.home_redirect_view, name='home'),
 
+    # Rota para o Menu
+    path('menu/', views.home_view, name='home_menu'),
+
     # Formulário Principal
     path('apontamento/novo/', views.apontamento_atividade_view, name='novo_apontamento'),
+
+    # Funcionalidades de Gestão (Owner/Admin)
+    path('apontamento/editar/<int:pk>/', views.editar_apontamento_view, name='editar_apontamento'),
+    path('apontamento/excluir/<int:pk>/', views.excluir_apontamento_view, name='excluir_apontamento'),
 
     # Tela de Sucesso
     path('apontamento/sucesso/', views.apontamento_sucesso_view, name='apontamento_sucesso'),

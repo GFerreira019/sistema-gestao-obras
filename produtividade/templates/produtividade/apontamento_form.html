@@ -5,64 +5,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ titulo }}</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <style>
-        /* --- Estilização Base dos Inputs (Dark Mode) --- */
         .form-control, select, input[type="text"], input[type="date"], input[type="time"], textarea {
-            background-color: #334155; 
-            border-color: #475569; 
-            color: #e2e8f0;
-            border-radius: 0.375rem; 
-            padding: 0.5rem; 
-            width: 100%; 
-            display: block;
+            background-color: #334155; border-color: #475569; color: #e2e8f0;
+            border-radius: 0.375rem; padding: 0.5rem; width: 100%; display: block;
         }
-        .form-control:focus { 
-            outline: 2px solid #6366f1; 
-            border-color: #6366f1; 
-        }
+        .form-control:focus { outline: 2px solid #6366f1; border-color: #6366f1; }
         select option { color: #000; background: #fff; }
-        
-        /* --- Estilização Radio Buttons (Tangerino) --- */
         #id_local_inicio_jornada { display: flex; flex-direction: column; gap: 0.5rem; }
         #id_local_inicio_jornada div { display: flex; align-items: center; gap: 0.5rem; }
         #id_local_inicio_jornada label { cursor: pointer; color: #cbd5e1; }
         input[type="radio"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; }
 
-        /* --- Customização Select2 para Dark Mode --- */
+        /* Select2 Dark */
         .select2-container { width: 100% !important; }
         .select2-container--default .select2-selection--single {
-            background-color: #334155 !important; 
-            border-color: #475569 !important;
-            color: #e2e8f0 !important; 
-            height: 42px; 
-            border-radius: 0.375rem; 
-            display: flex; 
-            align-items: center;
+            background-color: #334155 !important; border-color: #475569 !important;
+            color: #e2e8f0 !important; height: 42px; border-radius: 0.375rem; display: flex; align-items: center;
         }
         .select2-container--default .select2-selection--single .select2-selection__rendered {
-            color: #e2e8f0 !important; 
-            line-height: 42px; 
-            padding-left: 12px;
+            color: #e2e8f0 !important; line-height: 42px; padding-left: 12px;
         }
-        .select2-dropdown { 
-            background-color: #1e293b !important; 
-            border-color: #475569 !important; 
-            color: #e2e8f0; 
-        }
+        .select2-dropdown { background-color: #1e293b !important; border-color: #475569 !important; color: #e2e8f0; }
         .select2-container--default .select2-search--dropdown .select2-search__field {
-            background-color: #334155 !important; 
-            border: 1px solid #475569 !important; 
-            color: white !important;
+            background-color: #334155 !important; border: 1px solid #475569 !important; color: white !important;
         }
         .select2-results__option--highlighted.select2-results__option--selectable {
-            background-color: #6366f1 !important; 
-            color: white !important;
+            background-color: #6366f1 !important; color: white !important;
         }
     </style>
 </head>
@@ -84,14 +58,46 @@
     {% endif %}
 
     <div class="w-full max-w-4xl">
-        <div class="mb-6 border-b border-slate-800 pb-4">
-            <h2 class="text-3xl font-bold text-white">{{ titulo }}</h2>
-            <p class="text-gray-400 text-sm">Preenchimento de ponto e atividades.</p>
+        
+        <div class="mb-6 border-b border-slate-800 pb-4 flex items-center justify-between relative">
+            <div>
+                <h2 class="text-3xl font-bold text-white">{{ titulo }}</h2>
+                <p class="text-gray-400 text-sm">Relatório de Horas</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <a href="{% url 'historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+                    </svg>
+                    Ver Histórico
+                </a>
+
+                <div class="relative group z-50">
+                    <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg cursor-pointer ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900 shadow-lg hover:bg-indigo-500 transition-colors">
+                        {{ user.username|slice:":1"|upper }}
+                    </div>
+                    
+                    <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
+                        <div class="px-4 py-3 border-b border-slate-700">
+                            <p class="text-sm text-white font-bold truncate">
+                                {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}
+                            </p>
+                            <p class="text-xs text-gray-400 truncate">Conectado</p>
+                        </div>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors">
+                                Sair do Sistema
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <form method="post" class="space-y-6" id="apontamentoForm">
             {% csrf_token %}
-            
             {% if form.non_field_errors %}
                 <div class="bg-red-900/30 text-red-200 p-3 rounded border border-red-700">{{ form.non_field_errors }}</div>
             {% endif %}
@@ -99,30 +105,20 @@
             <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
                 <h3 class="text-indigo-400 font-bold mb-6 text-lg uppercase tracking-wider">Identificação</h3>
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label class="text-xs text-gray-400 mb-1 block">Colaborador *</label>{{ form.colaborador }}</div>
                     <div><label class="text-xs text-gray-400 mb-1 block">Cargo</label>{{ form.cargo_colaborador }}</div>
                     <div><label class="text-xs text-gray-400 mb-1 block">Data *</label>{{ form.data_apontamento }}</div>
-                    <div><label class="text-xs text-white font-bold mb-1 block">Local de Execução *</label>{{ form.local_execucao }}</div>
-                    
+                    <div><label class="text-xs text-white font-bold mb-1 block">Local de Trabalho *</label>{{ form.local_execucao }}</div>
                     <div class="md:col-span-2 bg-slate-800/50 p-4 rounded border border-slate-700">
                         <div class="flex items-center gap-3">
                             {{ form.registrar_veiculo }}
                             <label for="{{ form.registrar_veiculo.id_for_label }}" class="font-bold text-sm cursor-pointer select-none">Adicionar veículo</label>
                         </div>
-                        
                         <div id="veiculo-container" class="hidden mt-3 space-y-3">
-                            <div>
-                                <label class="text-xs text-gray-400 mb-1 block">Selecione o Veículo</label>
-                                {{ form.veiculo_selecao }}
-                            </div>
-                            
+                            <div><label class="text-xs text-gray-400 mb-1 block">Selecione o Veículo</label>{{ form.veiculo_selecao }}</div>
                             <div id="novo-veiculo-container" class="hidden grid grid-cols-2 gap-4 border-l-2 border-indigo-500 pl-3 mt-2 bg-slate-800 p-2 rounded">
-                                <div>
-                                    <label class="text-xs text-indigo-400 block mb-1">Modelo (Ex: HB20) *</label>
-                                    {{ form.veiculo_manual_modelo }}
-                                </div>
+                                <div><label class="text-xs text-indigo-400 block mb-1">Modelo (Ex: HB20) *</label>{{ form.veiculo_manual_modelo }}</div>
                                 <div>
                                     <label class="text-xs text-indigo-400 block mb-1">Placa (7 dígitos) *</label>
                                     {{ form.veiculo_manual_placa }}
@@ -138,18 +134,28 @@
             <div id="container-obra" class="hidden bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
                 <h3 class="text-emerald-400 font-bold mb-6 text-lg uppercase tracking-wider">Dados da Obra</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label class="text-xs text-gray-400 mb-1 block">Código da Obra *</label>{{ form.projeto }}</div>
-                    <div><label class="text-xs text-gray-400 mb-1 block">Nome da Obra</label>{{ form.nome_projeto }}</div>
+                
+                <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 mb-6">
+                    <p class="text-xs text-yellow-500 font-bold mb-2 uppercase">Código do Cliente apenas setores que não possuirem o adendo</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="text-xs text-emerald-300 mb-1 block font-bold">Código da Obra (com adendo)</label>
+                            {{ form.projeto }}
+                            <p class="text-[10px] text-gray-500 mt-1">Ex: R1894A00 - Vintage...</p>
+                        </div>
+                        <div>
+                            <label class="text-xs text-blue-300 mb-1 block font-bold">Código do Cliente (Geral)</label>
+                            {{ form.codigo_cliente }}
+                            <p class="text-[10px] text-gray-500 mt-1">Ex: 1894 - Vintage...</p>
+                        </div>
+                    </div>
                 </div>
-                
+
                 <div id="insertion-point-obra" class="mt-6"></div>
-                
                 <div class="mt-6 pt-6 border-t border-slate-800">
                     <div class="bg-slate-800/80 p-4 rounded border border-emerald-700/50">
                         <label class="font-bold text-sm text-white mb-3 block">Início da jornada (primeiro ponto no Tangerino) *</label>
                         <div class="pl-2">{{ form.local_inicio_jornada }}</div>
-                        
                         <div id="tangerino-outros-container" class="hidden mt-3 pl-2 border-l-2 border-emerald-500">
                             <label class="text-xs text-emerald-400 block mb-1">Especifique o Local *</label>{{ form.local_inicio_jornada_outros }}
                         </div>
@@ -160,9 +166,7 @@
             <div id="container-fora" class="hidden bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                 <h3 class="text-orange-400 font-bold mb-6 text-lg uppercase tracking-wider">Fora da Obra</h3>
-                <div class="mb-6">
-                    <label class="text-xs text-orange-400 font-bold mb-1 block">Setor / Justificativa *</label>{{ form.setor }}
-                </div>
+                <div class="mb-6"><label class="text-xs text-orange-400 font-bold mb-1 block">Setor / Justificativa *</label>{{ form.setor }}</div>
                 <div id="insertion-point-fora"></div>
             </div>
 
@@ -170,7 +174,6 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label class="text-xs text-gray-400 mb-1 block">Hora Início *</label>{{ form.hora_inicio }}</div>
                     <div><label class="text-xs text-gray-400 mb-1 block">Hora Término *</label>{{ form.hora_termino }}</div>
-                    
                     <div class="md:col-span-2 bg-slate-800/50 p-4 rounded border border-slate-700 mt-2">
                         <div class="flex items-center gap-3">
                             {{ form.registrar_auxiliar }}
@@ -178,17 +181,12 @@
                         </div>
                         <div class="aux-wrapper hidden space-y-3 mt-3">
                             <div><label class="text-xs text-gray-500 block mb-1">Auxiliar Principal</label>{{ form.auxiliar_selecao }}</div>
-                            
                             {{ form.auxiliares_extras_list }}
-                            
                             <div id="extras-container" class="space-y-2"></div>
                             <button type="button" id="btn-add-extra" class="text-xs text-indigo-400 font-bold hover:text-white transition-colors">+ Add. Auxiliar</button>
                         </div>
                     </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="text-xs text-gray-400 mb-1 block">Ocorrências / Obs.</label>{{ form.ocorrencias }}
-                    </div>
+                    <div class="md:col-span-2"><label class="text-xs text-gray-400 mb-1 block">Ocorrências / Obs.</label>{{ form.ocorrencias }}</div>
                 </div>
             </div>
 
@@ -203,16 +201,11 @@
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
                 <div class="relative transform overflow-hidden rounded-xl bg-slate-800 border border-slate-700 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                    
                     <div class="bg-slate-900 px-4 py-3 sm:px-6 border-b border-slate-700 flex items-center gap-3">
                         <div id="modal-icon-container" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-900/50"></div>
                         <h3 class="text-lg font-semibold leading-6 text-white" id="modal-title">Confirmação</h3>
                     </div>
-                    
-                    <div class="px-4 py-5 sm:p-6">
-                        <div id="modal-content" class="space-y-3 text-sm text-gray-300"></div>
-                    </div>
-                    
+                    <div class="px-4 py-5 sm:p-6"><div id="modal-content" class="space-y-3 text-sm text-gray-300"></div></div>
                     <div class="bg-slate-700/30 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
                         <button type="button" id="btn-confirm-submit" class="hidden inline-flex w-full justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 sm:w-auto">Confirmar e Enviar</button>
                         <button type="button" onclick="closeConfirmModal()" class="mt-3 inline-flex w-full justify-center rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-gray-300 shadow-sm hover:bg-slate-600 sm:mt-0 sm:w-auto border border-slate-600">Voltar e Editar</button>
@@ -224,49 +217,38 @@
 
     <script>
         $(document).ready(function() {
-            // 1. Inicialização do Select2
             $('#id_colaborador').select2({ placeholder: "Pesquisar Colaborador..." });
             $('#id_veiculo_selecao').select2({ placeholder: "Pesquisar Veículo..." });
-            $('#id_projeto').select2({ placeholder: "Pesquisar Obra..." });
+            $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true });
+            $('#id_codigo_cliente').select2({ placeholder: "Pesquisar Código do Cliente...", allowClear: true });
             $('#id_setor').select2({ placeholder: "Pesquisar Setor..." });
             $('#id_auxiliar_selecao').select2({ placeholder: "Pesquisar Auxiliar..." });
-
-            // Fix: Recalcular largura do Select2 quando container se torna visível
-            $('#id_local_execucao').change(function() { 
-                setTimeout(function() { $('#id_projeto').select2(); $('#id_setor').select2(); }, 100); 
-            });
             
-            // 2. Lógica de Veículo "OUTRO" (Manual)
+            // Lógica de Exclusividade (Obra vs Cliente)
+            $('#id_projeto').on('select2:select', function (e) {
+                $('#id_codigo_cliente').val(null).trigger('change'); // Limpa Cliente
+            });
+            $('#id_codigo_cliente').on('select2:select', function (e) {
+                $('#id_projeto').val(null).trigger('change'); // Limpa Obra
+            });
+
+            $('#id_local_execucao').change(function() { setTimeout(function() { $('#id_projeto').select2(); $('#id_codigo_cliente').select2(); $('#id_setor').select2(); }, 100); });
+            
             $('#id_veiculo_selecao').on('select2:select', function(e) {
-                const val = e.params.data.id;
-                toggleNovoVeiculo(val);
+                const val = e.params.data.id; toggleNovoVeiculo(val);
             });
             
-            // Fallback para carregamento inicial (ex: erro de validação)
             toggleNovoVeiculo($('#id_veiculo_selecao').val());
-
             function toggleNovoVeiculo(val) {
                 const novoContainer = $('#novo-veiculo-container');
-                if(val === 'OUTRO') {
-                    novoContainer.removeClass('hidden');
-                } else {
-                    novoContainer.addClass('hidden');
-                    // Limpa os campos manuais se trocar
-                    $('#id_veiculo_manual_modelo').val('');
-                    $('#id_veiculo_manual_placa').val('');
-                }
+                if(val === 'OUTRO') { novoContainer.removeClass('hidden'); } else { novoContainer.addClass('hidden'); $('#id_veiculo_manual_modelo').val(''); $('#id_veiculo_manual_placa').val(''); }
             }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            
-            // === FORÇA PLACA MAIÚSCULA ===
             const placaInput = document.getElementById('id_veiculo_manual_placa');
-            if(placaInput) { 
-                placaInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); }); 
-            }
+            if(placaInput) { placaInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); }); }
 
-            // === LAYOUT CONTROLLER (INT vs EXT) ===
             const localSel = document.getElementById('id_local_execucao');
             const boxObra = document.getElementById('container-obra');
             const boxFora = document.getElementById('container-fora');
@@ -277,39 +259,24 @@
             function updateLayout() {
                 const val = localSel.value;
                 commonBlock.classList.remove('hidden');
-                if(val === 'INT') { 
-                    boxObra.classList.remove('hidden'); 
-                    boxFora.classList.add('hidden'); 
-                    insertObra.appendChild(commonBlock); 
-                } else { 
-                    boxObra.classList.add('hidden'); 
-                    boxFora.classList.remove('hidden'); 
-                    insertFora.appendChild(commonBlock); 
-                }
+                if(val === 'INT') { boxObra.classList.remove('hidden'); boxFora.classList.add('hidden'); insertObra.appendChild(commonBlock); } 
+                else { boxObra.classList.add('hidden'); boxFora.classList.remove('hidden'); insertFora.appendChild(commonBlock); }
             }
             if(localSel) { localSel.addEventListener('change', updateLayout); setTimeout(updateLayout, 50); }
 
-            // === TANGERINO CONTROLLER ===
             const radios = document.querySelectorAll('input[name="local_inicio_jornada"]');
             const outrosContainer = document.getElementById('tangerino-outros-container');
             radios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
-                    if (e.target.value === 'OUT') { 
-                        outrosContainer.classList.remove('hidden'); 
-                    } else { 
-                        outrosContainer.classList.add('hidden'); 
-                        document.getElementById('id_local_inicio_jornada_outros').value = ''; 
-                    }
+                    if (e.target.value === 'OUT') { outrosContainer.classList.remove('hidden'); } 
+                    else { outrosContainer.classList.add('hidden'); document.getElementById('id_local_inicio_jornada_outros').value = ''; }
                 });
             });
 
-            // === TOGGLE VISIBILIDADE ===
-            // Veículo
             const vCheck = document.getElementById('id_registrar_veiculo');
             const vCont = document.getElementById('veiculo-container');
             if(vCheck) vCheck.addEventListener('change', () => vCheck.checked ? vCont.classList.remove('hidden') : vCont.classList.add('hidden'));
 
-            // Auxiliares
             const auxCheck = document.getElementById('id_registrar_auxiliar');
             const auxWrap = document.querySelector('.aux-wrapper');
             const mainAux = document.getElementById('id_auxiliar_selecao');
@@ -319,15 +286,12 @@
 
             if(auxCheck) {
                 const toggleAux = () => {
-                    if(auxCheck.checked) { 
-                        auxWrap.classList.remove('hidden'); 
-                        if(mainAux.options.length <= 1) loadAuxs(mainAux); 
-                    } else { auxWrap.classList.add('hidden'); }
+                    if(auxCheck.checked) { auxWrap.classList.remove('hidden'); if(mainAux.options.length <= 1) loadAuxs(mainAux); } 
+                    else { auxWrap.classList.add('hidden'); }
                 };
                 auxCheck.addEventListener('change', toggleAux); toggleAux();
             }
 
-            // Carrega lista de auxiliares via AJAX
             async function loadAuxs(selectElement) {
                 try {
                     const r = await fetch('/produtividade/api/get-auxiliares/');
@@ -335,54 +299,34 @@
                     selectElement.innerHTML = '<option value="">Selecione...</option>';
                     d.auxiliares.forEach(aux => {
                         const option = document.createElement('option');
-                        option.value = aux.id; 
-                        option.textContent = aux.nome; 
+                        option.value = aux.id; option.textContent = aux.nome; 
                         selectElement.appendChild(option);
                     });
                 } catch(e) {}
             }
 
-            // Adiciona novo select de auxiliar extra
             if(btnAddExtra) {
                 btnAddExtra.addEventListener('click', async () => {
-                    const newSel = document.createElement('select'); 
-                    newSel.className = "form-control mt-2 text-sm"; 
-                    await loadAuxs(newSel);
-                    
-                    const div = document.createElement('div'); 
-                    div.className = "flex items-center gap-2";
-                    const btnRemove = document.createElement('button'); 
-                    btnRemove.type = "button"; 
-                    btnRemove.innerHTML = "&times;"; 
-                    btnRemove.className = "text-red-500 font-bold px-2 text-xl hover:text-red-400";
-                    
+                    const newSel = document.createElement('select'); newSel.className = "form-control mt-2 text-sm"; await loadAuxs(newSel);
+                    const div = document.createElement('div'); div.className = "flex items-center gap-2";
+                    const btnRemove = document.createElement('button'); btnRemove.type = "button"; btnRemove.innerHTML = "&times;"; btnRemove.className = "text-red-500 font-bold px-2 text-xl hover:text-red-400";
                     newSel.addEventListener('change', updateHidden);
                     btnRemove.addEventListener('click', () => { div.remove(); updateHidden(); });
-                    
                     div.append(newSel, btnRemove);
                     containerExtras.appendChild(div);
                 });
             }
-            
             function updateHidden() {
                 const selects = containerExtras.querySelectorAll('select');
                 const vals = Array.from(selects).map(s => s.value).filter(v=>v);
                 hiddenList.value = vals.join(',');
             }
 
-            // === AUTO-COMPLETE DE INFORMAÇÕES ===
-            $('#id_projeto').on('select2:select', async function (e) {
-                const val = e.params.data.id; 
-                if(val) { const r = await fetch(`/produtividade/api/get-projeto-info/${val}/`); const d = await r.json(); document.getElementById('id_nome_projeto').value = d.nome_projeto; }
-            });
             $('#id_colaborador').on('select2:select', async function (e) {
-                const val = e.params.data.id; 
-                if(val) { const r = await fetch(`/produtividade/api/get-colaborador-info/${val}/`); const d = await r.json(); document.getElementById('id_cargo_colaborador').value = d.cargo; }
+                const val = e.params.data.id; if(val) { const r = await fetch(`/produtividade/api/get-colaborador-info/${val}/`); const d = await r.json(); document.getElementById('id_cargo_colaborador').value = d.cargo; }
             });
 
-            // =================================================================
-            // VALIDAÇÃO E MODAL DE FEEDBACK
-            // =================================================================
+            // Modal Feedback
             const btnPreSave = document.getElementById('btn-pre-save');
             const modal = document.getElementById('confirm-modal');
             const modalTitle = document.getElementById('modal-title');
@@ -392,13 +336,7 @@
             const mainForm = document.getElementById('apontamentoForm');
 
             window.closeConfirmModal = function() { modal.classList.add('hidden'); }
-            
-            function formatDate(dateStr) { 
-                if(!dateStr) return ""; 
-                const [y, m, d] = dateStr.split('-'); 
-                return `${d}-${m}-${y}`; 
-            }
-            
+            function formatDate(dateStr) { if(!dateStr) return ""; const [y, m, d] = dateStr.split('-'); return `${d}-${m}-${y}`; }
             function getTangerinoIcon(code) {
                 if(code === 'RES') return '<svg class="h-5 w-5 text-blue-400 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg> Residência';
                 if(code === 'CLI') return '<svg class="h-5 w-5 text-orange-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg> Cliente';
@@ -408,7 +346,6 @@
             }
 
             btnPreSave.addEventListener('click', function() {
-                // 1. Coletar Dados
                 const data = {
                     colab: $('#id_colaborador').select2('data')[0]?.text || "",
                     colab_id: $('#id_colaborador').val(),
@@ -416,27 +353,23 @@
                     local: document.getElementById('id_local_execucao').value,
                     obra: $('#id_projeto').select2('data')[0]?.text || "",
                     obra_id: $('#id_projeto').val(),
+                    cliente_txt: $('#id_codigo_cliente').select2('data')[0]?.text || "",
+                    cliente_id: $('#id_codigo_cliente').val(),
                     tangerino: document.querySelector('input[name="local_inicio_jornada"]:checked')?.value,
                     tangerino_outros: document.getElementById('id_local_inicio_jornada_outros').value,
                     setor: $('#id_setor').select2('data')[0]?.text || "",
                     setor_id: $('#id_setor').val(),
                     inicio: document.getElementById('id_hora_inicio').value,
                     fim: document.getElementById('id_hora_termino').value,
-                    
-                    // Veículo
                     usou_veiculo: document.getElementById('id_registrar_veiculo').checked,
                     veiculo_id: $('#id_veiculo_selecao').val(),
                     veiculo_txt: $('#id_veiculo_selecao').select2('data')[0]?.text,
-                    // 🚨 CORRIGIDO: IDs corretos conforme Django forms
                     veiculo_novo_mod: document.getElementById('id_veiculo_manual_modelo').value,
                     veiculo_novo_pla: document.getElementById('id_veiculo_manual_placa').value,
-                    
-                    // Auxiliares
                     usou_aux: document.getElementById('id_registrar_auxiliar').checked,
                     aux_princ: $('#id_auxiliar_selecao').select2('data')[0]?.text
                 };
 
-                // Coleta Extras
                 let auxsList = [];
                 if(data.usou_aux) {
                     if(data.aux_princ && data.aux_princ !== "Selecione...") auxsList.push(data.aux_princ);
@@ -444,22 +377,22 @@
                 }
 
                 let errors = [];
-                // Validações Básicas
                 if(!data.colab_id) errors.push("Colaborador é obrigatório.");
                 if(!data.data_pt) errors.push("Data é obrigatória.");
                 if(!data.inicio) errors.push("Hora de Início é obrigatória.");
                 if(!data.fim) errors.push("Hora de Término é obrigatória.");
 
-                // Validações de Local
                 if(data.local === 'INT') {
-                    if(!data.obra_id) errors.push("Código da Obra é obrigatório.");
+                    // VALIDAÇÃO: Pelo menos um, mas não ambos
+                    if(!data.obra_id && !data.cliente_id) errors.push("Selecione o Código da Obra OU o Código do Cliente.");
+                    if(data.obra_id && data.cliente_id) errors.push("Selecione APENAS UM (Obra ou Cliente), não ambos.");
+                    
                     if(!data.tangerino) errors.push("Início da jornada (Tangerino) é obrigatório.");
                     if(data.tangerino === 'OUT' && !data.tangerino_outros) errors.push("Especifique o local para a opção 'Outros'.");
                 } else {
                     if(!data.setor_id) errors.push("Setor / Justificativa é obrigatório.");
                 }
 
-                // Validações de Veículo Manual
                 if(data.usou_veiculo) {
                     if(!data.veiculo_id) errors.push("Selecione o Veículo.");
                     if(data.veiculo_id === 'OUTRO') {
@@ -470,7 +403,6 @@
                 }
 
                 if(errors.length > 0) {
-                    // MODO ERRO
                     modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10";
                     modalIconContainer.innerHTML = `<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`;
                     modalTitle.textContent = "Dados Incompletos";
@@ -481,14 +413,22 @@
                     modalContent.innerHTML = errorHtml;
                     btnConfirmSubmit.classList.add('hidden');
                 } else {
-                    // MODO SUCESSO (RESUMO)
                     modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-900/50 sm:mx-0 sm:h-10 sm:w-10";
                     modalIconContainer.innerHTML = `<svg class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
                     modalTitle.textContent = "Confirmação de Envio";
                     modalTitle.classList.remove('text-red-400'); modalTitle.classList.add('text-emerald-400');
 
-                    let contextInfo = (data.local === 'INT') ? `<span class="text-indigo-300 font-bold">Obra:</span> ${data.obra}` : `<span class="text-orange-300 font-bold">Setor:</span> ${data.setor}`;
-                    let tangDisplay = (data.local === 'INT') ? `<p class="flex items-center gap-2"><span class="text-gray-500">Origem:</span> <span class="text-white">${getTangerinoIcon(data.tangerino)} ${data.tangerino === 'OUT' ? ' - ' + data.tangerino_outros : ''}</span></p>` : '';
+                    // Lógica de Display do Local
+                    let contextInfo = "";
+                    if(data.local === 'INT') {
+                        if(data.obra_id) contextInfo = `<span class="text-indigo-300 font-bold">Obra:</span> ${data.obra}`;
+                        else contextInfo = `<span class="text-blue-300 font-bold">Cliente Geral:</span> ${data.cliente_txt}`;
+                    } else {
+                        contextInfo = `<span class="text-orange-300 font-bold">Setor:</span> ${data.setor}`;
+                    }
+
+                    let tangDisplay = (data.local === 'INT') 
+                    ? `<p class="flex items-center gap-2"><span class="text-gray-500">Origem:</span> <span class="text-white">${getTangerinoIcon(data.tangerino)} ${data.tangerino === 'OUT' ? ' - ' + data.tangerino_outros : ''}</span></p>` : '';
                     
                     let auxDisplay = '';
                     if(auxsList.length > 0) {
