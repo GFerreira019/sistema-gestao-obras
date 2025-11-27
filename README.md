@@ -1,6 +1,6 @@
 # Sistema de Apontamento de Horas (Timesheet)
 
-Sistema web desenvolvido em **Python/Django** para gestão de produtividade e controle de horas em atividades operacionais da empresa. O projeto foca na experiência do usuário, focando em uma interface amigável e na integridade dos dados, substituindo planilhas manuais por um fluxo digital e responsivo.
+Sistema web desenvolvido em **Python/Django** para gestão de produtividade e controle de horas em atividades operacionais da empresa. O projeto foca na experiência do usuário, priorizando uma interface amigável e na integridade dos dados, substituindo planilhas manuais por um fluxo digital e responsivo com controle de acesso granular.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Django](https://img.shields.io/badge/Django-5.0-green)
@@ -8,16 +8,24 @@ Sistema web desenvolvido em **Python/Django** para gestão de produtividade e co
 
 ## Funcionalidades Principais
 
-* **Apontamento Híbrido:** Registro de horas para colaboradores **Dentro da Obra** (vinculado a projetos) ou **Fora da Obra** (vinculado a setores/justificativas).
+* **Apontamento Flexível:** Registro de horas vinculado a **Obra Específica** (com adendo) ou **Código de Cliente Geral** (para setores que não tem informações de adendo), garantindo exclusividade e precisão no dado.
 * **Gestão de Veículos:** Seleção de frota cadastrada ou cadastro rápido de veículos externos/alugados durante o apontamento.
-* **Equipes Dinâmicas:** Adição de múltiplos auxiliares (Ajudantes/Oficiais) em um único registro de ponto.
-* **Integração Visual Tangerino:** Registro do local de início da jornada para conciliação com ponto eletrônico.
+* **Equipes Dinâmicas:** Adição de múltiplos auxiliares (Auxiliares/Oficiais) em um único registro de ponto.
+* **Início da Jornada** Registro do local de início da jornada para conciliação com ponto eletrônico para cálculo de deslocamento.
 * **Histórico Detalhado:** Visualização inteligente que "explode" os registros, mostrando separadamente o colaborador principal e seus auxiliares.
 * **UX Aprimorada:**
     * Autocomplete em campos de seleção (Select2).
     * Modal de Feedback com resumo antes do envio.
     * Layout responsivo e Dark Mode nativo.
 
+## Controle de Acesso e Permissões (RBAC)
+
+O sistema implementa uma hierarquia de acesso robusta para garantir a segurança e organização dos dados:
+
+* **OWNER (Superusuário):** Acesso irrestrito. Visualiza o histórico global, envia formulários para qualquer colaborador e possui permissão exclusiva para **Editar** e **Excluir** registros (CRUD completo).
+* **ADMINISTRATIVO:** Pode enviar formulários e visualizar o histórico de colaboradores pertencentes aos **"Setores sob Gestão"** (configurados no cadastro do usuário), além de seus próprios registros.
+* **GESTOR:** Pode enviar formulários apenas para si mesmo, mas possui permissão de **visualização** do histórico de todos os colaboradores dos seus "Setores sob Gestão".
+* **OPERACIONAL:** Acesso restrito. Pode enviar formulários e visualizar o histórico apenas de **si mesmo**.
 
 ## Visão de Futuro & Roadmap
 
@@ -28,14 +36,12 @@ Este projeto é o alicerce (MVP) para um ecossistema maior de gestão de obras. 
 3.  **Dashboard em Tempo Real:** Visualização do avanço físico x financeiro.
 4.  **Inteligência de Dados:** Análise de métricas para refinar orçamentos futuros (Orçado vs. Realizado).
 
-
 ## Tecnologias Utilizadas
 
 * **Backend:** Python, Django 5
 * **Frontend:** HTML5, TailwindCSS (via CDN), JavaScript (Vanilla + jQuery)
 * **Bibliotecas JS:** Select2 (para caixas de seleção pesquisáveis)
 * **Banco de Dados:** SQLite (Desenvolvimento)
-
 
 ## Como Executar o Projeto
 
