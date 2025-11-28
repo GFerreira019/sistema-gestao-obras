@@ -21,6 +21,9 @@ urlpatterns = [
     # Histórico
     path('historico/', views.historico_apontamentos_view, name='historico_apontamentos'),
     
+    # Página Principal de Configurações
+    path('configuracoes/', views.configuracoes_view, name='configuracoes'),
+
     # APIs AJAX
     path('api/get-projeto-info/<int:projeto_id>/', views.get_projeto_info_ajax, name='get_projeto_info'),
     path('api/get-colaborador-info/<int:colaborador_id>/', views.get_colaborador_info_ajax, name='get_colaborador_info'),

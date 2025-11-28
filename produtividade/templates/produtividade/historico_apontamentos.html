@@ -8,20 +8,56 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         tr.group:hover td { color: #e2e8f0; }
+        /* Estilo para inputs de data (escondidos por padrão, aparecem se clicar em Personalizado) */
+        .date-input {
+            background-color: #334155; border: 1px solid #475569; color: #e2e8f0;
+            padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem;
+        }
     </style>
 </head>
 <body class="h-full text-gray-200 p-4 sm:p-8">
     <div class="max-w-full xl:max-w-7xl mx-auto bg-slate-900 shadow-xl rounded-lg border border-slate-800 p-6">
 
-        <div class="flex items-center justify-between mb-8 border-b border-slate-800 pb-4 relative">
-            <h2 class="text-2xl font-bold text-white">{{ titulo }}</h2>
+        <div class="flex flex-col xl:flex-row xl:items-center justify-between mb-8 border-b border-slate-800 pb-4 gap-4 relative">
             
-            <div class="flex items-center gap-4">
-                <a href="{% url 'novo_apontamento' %}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 transition flex items-center gap-2 shadow-lg shadow-indigo-900/20">
+            <div class="flex flex-col gap-2">
+                <h2 class="text-2xl font-bold text-white">{{ titulo }}</h2>
+                
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="?period=3" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '3' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
+                        3 Dias
+                    </a>
+                    <a href="?period=7" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '7' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
+                        7 Dias
+                    </a>
+                    <a href="?period=15" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '15' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
+                        15 Dias
+                    </a>
+                    <a href="?period=30" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '30' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
+                        30 Dias
+                    </a>
+                    
+                    <button onclick="document.getElementById('custom-filter').classList.toggle('hidden')" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == 'custom' %}bg-indigo-600 text-white{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
+                        Personalizado
+                    </button>
+                </div>
+
+                <form id="custom-filter" method="get" class="{% if current_period != 'custom' %}hidden{% endif %} flex items-center gap-2 mt-2 bg-slate-800 p-2 rounded-lg border border-slate-700 w-fit">
+                    <input type="date" name="start_date" value="{{ start_date_val }}" class="date-input">
+                    <span class="text-xs text-gray-500">até</span>
+                    <input type="date" name="end_date" value="{{ end_date_val }}" class="date-input">
+                    <button type="submit" class="bg-slate-600 hover:bg-slate-500 text-white p-1 rounded text-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="flex items-center gap-4 justify-end w-full xl:w-auto mt-4 xl:mt-0">
+                <a href="{% url 'novo_apontamento' %}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 transition flex items-center gap-2 shadow-lg shadow-indigo-900/20 whitespace-nowrap">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                         <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
                     </svg>
-                    Novo Registro
+                    Novo
                 </a>
 
                 <div class="relative group z-50">
@@ -29,16 +65,29 @@
                         {{ user.username|slice:":1"|upper }}
                     </div>
                     
-                    <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 origin-top-right">
+                    <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
                         <div class="px-4 py-3 border-b border-slate-700">
                             <p class="text-sm text-white font-bold truncate">
                                 {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}
                             </p>
                             <p class="text-xs text-gray-400 truncate">Conectado</p>
                         </div>
+                        
+                        <a href="{% url 'configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                            Configurações
+                        </a>
+
                         <form method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
-                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors">
+                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                                    <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" />
+                                    <path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" />
+                                </svg>
                                 Sair do Sistema
                             </button>
                         </form>

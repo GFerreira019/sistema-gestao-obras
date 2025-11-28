@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
+from django.utils import timezone # Import necessário para data
+from datetime import timedelta    # Import necessário para cálculo de dias
 from .forms import ApontamentoForm
 from .models import Apontamento, Projeto, Colaborador, Setor, Veiculo, CodigoCliente
 from django.contrib.auth.models import Group
@@ -137,8 +139,22 @@ def excluir_apontamento_view(request, pk):
     return redirect('historico_apontamentos')
 
 
+@login_required
+def configuracoes_view(request):
+    """
+    Página principal de configurações do usuário.
+    """
+    # Mapeia URLs para o template para que possam ser usadas no HTML
+    change_password_url = '/accounts/password_change/' # Rota padrão do Django Auth
+    
+    context = {
+        'titulo': 'Configurações do Usuário',
+        'change_password_url': change_password_url,
+    }
+    return render(request, 'produtividade/configuracoes.html', context)
+
 # ==============================================================================
-# VIEW DE HISTÓRICO (COM FILTROS AVANÇADOS)
+# VIEW DE HISTÓRICO (COM FILTROS AVANÇADOS E LIMITES)
 # ==============================================================================
 
 @login_required
@@ -146,15 +162,65 @@ def historico_apontamentos_view(request):
     user = request.user
     queryset = Apontamento.objects.all()
 
-    # 1. Recupera o colaborador logado (se houver)
+    # --- 1. Definição de Datas (Filtro Rápido vs Manual) ---
+    period = request.GET.get('period') # Ex: '3', '7', '15', '30'
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    # Data final é sempre "hoje" por padrão, a menos que especificado no manual
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=6) # Padrão 7 dias (contando hoje)
+    current_period = '7' # Para marcar o botão ativo no HTML
+
+    if period:
+        # Lógica dos Botões Rápidos
+        try:
+            days = int(period)
+            start_date = end_date - timedelta(days=days - 1)
+            current_period = period
+            start_date_str = None
+            end_date_str = None
+        except ValueError:
+            pass
+    elif start_date_str and end_date_str:
+        # Lógica Manual (Customizado)
+        try:
+            start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            current_period = 'custom'
+        except ValueError:
+            pass
+
+    # --- 2. Aplica Limite de Segurança (30 Dias) para Não-Owners ---
+    if not is_owner(user):
+        limit_date = timezone.now().date() - timedelta(days=30)
+        
+        # AQUI É A CORREÇÃO: Força a data de início do filtro a respeitar o limite
+        if start_date < limit_date:
+            start_date = limit_date
+        
+        # Garante que NUNCA venha dado mais antigo, mesmo que a query tente burlar
+        queryset = queryset.filter(data_apontamento__gte=limit_date)
+
+    # --- 3. Aplica o Filtro de Data Selecionado na Query ---
+    # Converte para datetime para pegar o dia todo (00:00 a 23:59)
+    end_datetime = timezone.datetime.combine(end_date, timezone.datetime.max.time())
+    start_datetime = timezone.datetime.combine(start_date, timezone.datetime.min.time())
+    
+    # Usa data_apontamento ou hora_inicio para filtrar o range (preferência por data_apontamento que é DateField)
+    queryset = queryset.filter(
+        data_apontamento__gte=start_date, 
+        data_apontamento__lte=end_date
+    )
+
+    # --- 4. Filtros de Perfil (RBAC) ---
     try:
         colaborador_logado = Colaborador.objects.get(user_account=user)
     except Colaborador.DoesNotExist:
         colaborador_logado = None
 
-    # 2. Aplica Filtros baseados no Perfil
     if is_owner(user):
-        # OWNER: Vê tudo
+        # OWNER: Vê tudo (dentro do filtro de data selecionado, mas sem limite de 30 dias)
         pass 
         
     elif is_admin_or_gestor(user) and colaborador_logado:
@@ -174,7 +240,7 @@ def historico_apontamentos_view(request):
         # OPERACIONAL (ou sem perfil definido): Vê apenas o que registrou
         queryset = queryset.filter(registrado_por=user)
 
-    # --- Prepara Lista para Exibição ---
+    # --- 5. Cálculo de Totais e Ordenação ---
     apontamentos_db = queryset.order_by('-data_apontamento', '-id')
     historico_lista = []
 
@@ -183,7 +249,7 @@ def historico_apontamentos_view(request):
         if item.local_execucao == 'INT':
             if item.projeto:
                 p_cod = item.projeto.codigo if item.projeto.codigo else ""
-                local_ref = f"{p_cod} - {item.projeto.nome}" if p_cod else f"OBRA: {item.projeto.nome}"
+                local_ref = f"{p_cod} - {item.projeto.nome}" if p_cod else f"{item.projeto.nome}"
             elif item.codigo_cliente:
                 local_ref = f"{item.codigo_cliente.codigo} - {item.codigo_cliente.nome}"
             else:
@@ -263,10 +329,14 @@ def historico_apontamentos_view(request):
         'titulo': "Histórico",
         'apontamentos_lista': historico_lista,
         'show_user_column': not is_operacional(user), # Operacional não precisa ver quem registrou (foi ele mesmo)
-        'is_owner': is_owner(user) # Flag para exibir botões de editar/excluir no template
+        'is_owner': is_owner(user), # Flag para exibir botões de editar/excluir no template
+        
+        # Variáveis para o Template controlar os botões
+        'current_period': current_period,
+        'start_date_val': start_date.strftime('%Y-%m-%d'),
+        'end_date_val': end_date.strftime('%Y-%m-%d'),
     }
     return render(request, 'produtividade/historico_apontamentos.html', context)
-
 
 # ==============================================================================
 # APIS AJAX & UTILITÁRIOS

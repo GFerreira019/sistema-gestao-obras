@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br" class="h-full bg-gray-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card-link {
+            background-color: #1e293b; /* slate-800 */
+            border-color: #334155; /* slate-700 */
+            transition: all 0.2s;
+        }
+        .card-link:hover {
+            background-color: #334155; /* slate-700 */
+            border-color: #6366f1; /* indigo-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-200 p-4 sm:p-8">
+
+    <div class="w-full max-w-4xl mx-auto">
+        
+        <div class="mb-6 border-b border-slate-800 pb-4 flex items-center justify-between relative">
+            <div>
+                <h2 class="text-3xl font-bold text-white">{{ titulo }}</h2>
+                <p class="text-gray-400 text-sm">Opções de conta e sistema.</p>
+            </div>
+            
+            <a href="{% url 'historico_apontamentos' %}" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.565a.75.75 0 01-.91 1.11L3.611 10.8a1.5 1.5 0 010-2.31l5.359-4.524a.75.75 0 11.91 1.11l-4.158 3.565H16.25A.75.75 0 0117 10z" clip-rule="evenodd" /></svg>
+                Voltar
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <a href="{{ change_password_url }}" class="card-link p-6 rounded-xl border border-slate-700 shadow-lg flex items-center gap-4">
+                <div class="p-3 rounded-full bg-indigo-600/50 text-indigo-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd" /></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Alterar a Senha</h3>
+                    <p class="text-sm text-gray-400">Redefina sua senha de acesso ao sistema.</p>
+                </div>
+            </a>
+            
+            <div class="card-link p-6 rounded-xl border border-slate-700 shadow-lg flex items-center gap-4 opacity-50 cursor-not-allowed">
+                 <div class="p-3 rounded-full bg-slate-600/50 text-slate-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7"><path d="M11.644 1.751a.75.75 0 01.712 0l4.02 1.838a.75.75 0 01.442.684V7.5c0 4.148-1.545 7.643-4.309 10.155a12.63 12.63 0 01-2.607 2.365.75.75 0 01-.798 0 12.628 12.628 0 01-2.607-2.365C5.025 15.143 3.48 11.648 3.48 7.5V4.273a.75.75 0 01.442-.684l4.02-1.838a.75.75 0 01.712 0z" /></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-400">Notificações</h3>
+                    <p class="text-sm text-gray-500">Em desenvolvimento.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

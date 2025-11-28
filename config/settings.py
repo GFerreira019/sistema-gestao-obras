@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'produtividade',
+    'produtividade.apps.ProdutividadeConfig',
 ]
 
 MIDDLEWARE = [
@@ -55,14 +55,14 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'produtividade' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.static', # Adicione esta linha se for usar arquivos estáticos em templates
+                'django.template.context_processors.static',
             ],
         },
     },
@@ -131,3 +131,6 @@ LOGIN_REDIRECT_URL = 'home'
 
 # Para onde ir após clicar em Sair (volta para a tela de login)
 LOGOUT_REDIRECT_URL = 'login'
+
+# Define o redirecionamento após a troca de senha (Volta para o Login)
+PASSWORD_CHANGE_DONE_URL = '/accounts/login/'
