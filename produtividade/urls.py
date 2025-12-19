@@ -28,4 +28,6 @@ urlpatterns = [
     path('api/get-projeto-info/<int:projeto_id>/', views.get_projeto_info_ajax, name='get_projeto_info'),
     path('api/get-colaborador-info/<int:colaborador_id>/', views.get_colaborador_info_ajax, name='get_colaborador_info'),
     path('api/get-auxiliares/', views.get_auxiliares_ajax, name='get_auxiliares'), 
+    path('api/get-centro-custo-info/<int:cc_id>/', views.get_centro_custo_info_ajax, name='get_centro_custo_info_ajax'),
+    path('api/get-calendar-status/', views.get_calendar_status_ajax, name='get_calendar_status_ajax'),
 ]

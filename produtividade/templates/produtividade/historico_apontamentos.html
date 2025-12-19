@@ -8,10 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         tr.group:hover td { color: #e2e8f0; }
-        /* Estilo para inputs de data (escondidos por padrão, aparecem se clicar em Personalizado) */
-        .date-input {
-            background-color: #334155; border: 1px solid #475569; color: #e2e8f0;
-            padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem;
+        /* Grid do Calendário */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
         }
     </style>
 </head>
@@ -24,40 +25,27 @@
                 <h2 class="text-2xl font-bold text-white">{{ titulo }}</h2>
                 
                 <div class="flex flex-wrap items-center gap-2">
-                    <a href="?period=3" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '3' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
-                        3 Dias
-                    </a>
-                    <a href="?period=7" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '7' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
-                        7 Dias
-                    </a>
-                    <a href="?period=15" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '15' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
-                        15 Dias
-                    </a>
-                    <a href="?period=30" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '30' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
-                        30 Dias
-                    </a>
-                    
-                    <button onclick="document.getElementById('custom-filter').classList.toggle('hidden')" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == 'custom' %}bg-indigo-600 text-white{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">
-                        Personalizado
-                    </button>
+                    <a href="?period=3" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '3' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">3 Dias</a>
+                    <a href="?period=7" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '7' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">7 Dias</a>
+                    <a href="?period=15" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '15' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">15 Dias</a>
+                    <a href="?period=30" class="px-3 py-1 rounded-full text-xs font-bold transition-all {% if current_period == '30' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-800 text-gray-400 border border-slate-700 hover:bg-slate-700 hover:text-white{% endif %}">30 Dias</a>
                 </div>
-
-                <form id="custom-filter" method="get" class="{% if current_period != 'custom' %}hidden{% endif %} flex items-center gap-2 mt-2 bg-slate-800 p-2 rounded-lg border border-slate-700 w-fit">
-                    <input type="date" name="start_date" value="{{ start_date_val }}" class="date-input">
-                    <span class="text-xs text-gray-500">até</span>
-                    <input type="date" name="end_date" value="{{ end_date_val }}" class="date-input">
-                    <button type="submit" class="bg-slate-600 hover:bg-slate-500 text-white p-1 rounded text-xs">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
-                    </button>
-                </form>
             </div>
             
             <div class="flex items-center gap-4 justify-end w-full xl:w-auto mt-4 xl:mt-0">
+                
+                <button type="button" onclick="openCalendar()" class="rounded-md bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-500 transition flex items-center gap-2 shadow-lg shadow-teal-900/20 whitespace-nowrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                        <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd" />
+                    </svg>
+                    Verificar Registros
+                </button>
+
                 <a href="{% url 'novo_apontamento' %}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 transition flex items-center gap-2 shadow-lg shadow-indigo-900/20 whitespace-nowrap">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                         <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
                     </svg>
-                    Novo
+                    Novo Registro
                 </a>
 
                 <div class="relative group z-50">
@@ -72,22 +60,14 @@
                             </p>
                             <p class="text-xs text-gray-400 truncate">Conectado</p>
                         </div>
-                        
                         <a href="{% url 'configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                             Configurações
                         </a>
-
                         <form method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
                             <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                                    <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" />
-                                    <path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" />
-                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" /></svg>
                                 Sair do Sistema
                             </button>
                         </form>
@@ -104,7 +84,7 @@
                         <th class="py-3 px-3 text-left text-xs font-bold text-gray-400 uppercase">Obra / Justificativa</th>
                         <th class="py-3 px-3 text-left text-xs font-bold text-gray-400 uppercase">Colaborador</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Veículo</th>
-                        <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase" title="Início da Jornada">Origem</th>
+                        <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Origem</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Início</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Fim</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Obs</th>
@@ -117,95 +97,52 @@
                 <tbody class="divide-y divide-slate-800">
                     {% for item in apontamentos_lista %}
                     <tr class="hover:bg-slate-800/50 transition group">
-                        <td class="py-4 px-3 text-sm text-gray-300 font-medium whitespace-nowrap">
-                            {{ item.data|date:"d/m/Y" }}
-                        </td>
-                        
-                        <td class="py-4 px-3 text-sm text-gray-400">
-                            {{ item.local_ref }}
-                        </td>
-
+                        <td class="py-4 px-3 text-sm text-gray-300 font-medium whitespace-nowrap">{{ item.data|date:"d/m/Y" }}</td>
+                        <td class="py-4 px-3 text-sm text-gray-400">{{ item.local_ref }}</td>
                         <td class="py-4 px-3 text-sm">
                             <div class="flex flex-col">
                                 <span class="font-semibold {% if item.is_auxiliar %}text-indigo-300{% else %}text-white{% endif %}">
                                     {{ item.nome }}
-                                    {% if item.is_auxiliar %}
-                                        <span class="ml-1 text-[10px] text-indigo-400 border border-indigo-800 px-1 rounded">AUX</span>
-                                    {% endif %}
+                                    {% if item.is_auxiliar %}<span class="ml-1 text-[10px] text-indigo-400 border border-indigo-800 px-1 rounded">AUX</span>{% endif %}
                                 </span>
                                 <span class="text-xs text-gray-500 font-normal">{{ item.cargo }}</span>
                             </div>
                         </td>
-
-                        <td class="py-4 px-3 text-sm text-center font-mono text-emerald-400">
-                            {{ item.veiculo }}
-                        </td>
-
+                        <td class="py-4 px-3 text-sm text-center font-mono text-emerald-400">{{ item.veiculo }}</td>
                         <td class="py-4 px-3 text-center">
-                            {% if item.tangerino == 'RES' %}
-                                <div class="flex justify-center" title="Residência"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg></div>
-                            {% elif item.tangerino == 'CLI' %}
-                                <div class="flex justify-center" title="Cliente"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /><path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.435-.608-7.92-1.708z" /></svg></div>
-                            {% elif item.tangerino == 'SED' %}
-                                <div class="flex justify-center" title="Sede ATGB"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg></div>
-                            {% elif item.tangerino == 'OUT' %}
-                                <div class="flex flex-col items-center" title="{{ item.tangerino_obs }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
-                                    {% if item.tangerino_obs %}<span class="text-[10px] text-gray-400 max-w-[80px] truncate">{{ item.tangerino_obs }}</span>{% endif %}
-                                </div>
-                            {% else %}
-                                <span class="text-gray-600">-</span>
-                            {% endif %}
+                            {% if item.tangerino == 'RES' %}<div class="flex justify-center" title="Residência"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg></div>
+                            {% elif item.tangerino == 'CLI' %}<div class="flex justify-center" title="Cliente"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /><path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.435-.608-7.92-1.708z" /></svg></div>
+                            {% elif item.tangerino == 'SED' %}<div class="flex justify-center" title="Sede ATGB"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg></div>
+                            {% elif item.tangerino == 'OUT' %}<div class="flex flex-col items-center" title="{{ item.tangerino_obs }}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>{% if item.tangerino_obs %}<span class="text-[10px] text-gray-400 max-w-[80px] truncate">{{ item.tangerino_obs }}</span>{% endif %}</div>
+                            {% else %}<span class="text-gray-600">-</span>{% endif %}
                         </td>
-
                         <td class="py-4 px-3 text-sm text-emerald-400 font-mono text-center">{{ item.inicio|time:"H:i" }}</td>
                         <td class="py-4 px-3 text-sm text-red-400 font-mono text-center">{{ item.termino|time:"H:i" }}</td>
-
                         <td class="py-4 px-3 text-center">
                             {% if item.obs %}
                                 <button type="button" onclick="openModal('Observações', `{{ item.obs|escapejs }}`)" class="text-gray-400 hover:text-white transition-colors" title="Ver Observação">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 01-3.476.383.39.39 0 00-.297.17l-2.755 4.133a.75.75 0 01-1.248 0l-2.755-4.133a.39.39 0 00-.297-.17 48.9 48.9 0 01-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97zM6.75 8.25a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H7.5z" clip-rule="evenodd" /></svg>
                                 </button>
-                            {% else %}
-                                <span class="text-gray-600 text-xs">-</span>
-                            {% endif %}
+                            {% else %}<span class="text-gray-600 text-xs">-</span>{% endif %}
                         </td>
-
                         <td class="py-4 px-3 text-center">
-                            <button type="button" 
-                                onclick="openModal('Detalhes do Registro', `👤 Enviado por: {{ item.registrado_por_str|escapejs }}\n📅 Data: {{ item.registrado_em|date:'d/m/Y' }}\n⏰ Hora: {{ item.registrado_em|date:'H:i' }}`)" 
-                                class="text-cyan-600 hover:text-cyan-400 transition-colors" title="Ver Detalhes">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" />
-                                </svg>
+                            <button type="button" onclick="openModal('Detalhes do Registro', `👤 Enviado por: {{ item.registrado_por_str|escapejs }}\n📅 Data: {{ item.registrado_em|date:'d/m/Y' }}\n⏰ Hora: {{ item.registrado_em|date:'H:i' }}`)" class="text-cyan-600 hover:text-cyan-400 transition-colors" title="Ver Detalhes">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" /></svg>
                             </button>
                         </td>
-
                         {% if is_owner %}
                         <td class="py-4 px-3 text-center">
                             {% if not item.is_auxiliar %}
                                 <div class="flex items-center justify-center gap-3">
-                                    <a href="{% url 'editar_apontamento' item.id %}" class="text-indigo-400 hover:text-indigo-300 transition-colors" title="Editar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
-                                            <path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32l8.4-8.4z" />
-                                            <path d="M5.25 5.25a3 3 0 00-3 3v10.5a3 3 0 003 3h10.5a3 3 0 003-3V13.5a.75.75 0 00-1.5 0v5.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V8.25a1.5 1.5 0 011.5-1.5h5.25a.75.75 0 000-1.5H5.25z" />
-                                        </svg>
-                                    </a>
-                                    <a href="{% url 'excluir_apontamento' item.id %}" class="text-red-500 hover:text-red-400 transition-colors" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este registro permanentemente?')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
-                                            <path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.565-.061a48.854 48.854 0 01-7.83-.51 48.853 48.853 0 01-7.83.51l-.565.061a.75.75 0 11-.49-1.478 48.816 48.816 0 013.878-.512V4.478C7.49 3.31 8.358 2.25 9.593 2.25h4.814c1.236 0 2.103 1.06 2.103 2.228zM15 9.75a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
+                                    <a href="{% url 'editar_apontamento' item.id %}" class="text-indigo-400 hover:text-indigo-300 transition-colors" title="Editar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32l8.4-8.4z" /><path d="M5.25 5.25a3 3 0 00-3 3v10.5a3 3 0 003 3h10.5a3 3 0 003-3V13.5a.75.75 0 00-1.5 0v5.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V8.25a1.5 1.5 0 011.5-1.5h5.25a.75.75 0 000-1.5H5.25z" /></svg></a>
+                                    <a href="{% url 'excluir_apontamento' item.id %}" class="text-red-500 hover:text-red-400 transition-colors" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este registro permanentemente?')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.565-.061a48.854 48.854 0 01-7.83-.51 48.853 48.853 0 01-7.83.51l-.565.061a.75.75 0 11-.49-1.478 48.816 48.816 0 013.878-.512V4.478C7.49 3.31 8.358 2.25 9.593 2.25h4.814c1.236 0 2.103 1.06 2.103 2.228zM15 9.75a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6z" clip-rule="evenodd" /></svg></a>
                                 </div>
                             {% endif %}
                         </td>
                         {% endif %}
-
                     </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="{% if is_owner %}10{% else %}9{% endif %}" class="text-center py-12 text-gray-500">Nenhum registro encontrado.</td>
-                    </tr>
+                    <tr><td colspan="{% if is_owner %}10{% else %}9{% endif %}" class="text-center py-12 text-gray-500">Nenhum registro encontrado.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -240,7 +177,62 @@
         </div>
     </div>
 
+    <div id="calendar-modal" class="relative z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-xl bg-slate-800 border border-slate-700 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                    <div class="bg-slate-900 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-teal-500">
+                                <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd" />
+                            </svg>
+                            Verificar Registros
+                        </h3>
+                        <button onclick="closeCalendar()" class="text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+                    </div>
+                    
+                    <div class="px-6 pt-4 flex justify-between items-center text-white mb-2">
+                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-700 rounded-full text-teal-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                        </button>
+                        <span id="calendar-month-label" class="font-bold text-lg uppercase tracking-wider"></span>
+                        <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-700 rounded-full text-teal-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </button>
+                    </div>
+
+                    <div class="px-6 pb-6">
+                        <div class="grid grid-cols-7 mb-2 text-center">
+                            <div class="text-xs text-gray-500 font-bold">D</div>
+                            <div class="text-xs text-gray-500 font-bold">S</div>
+                            <div class="text-xs text-gray-500 font-bold">T</div>
+                            <div class="text-xs text-gray-500 font-bold">Q</div>
+                            <div class="text-xs text-gray-500 font-bold">Q</div>
+                            <div class="text-xs text-gray-500 font-bold">S</div>
+                            <div class="text-xs text-gray-500 font-bold">S</div>
+                        </div>
+                        
+                        <div id="calendar-grid" class="calendar-grid">
+                            <div class="col-span-7 text-center py-8 text-gray-500 italic">Carregando...</div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-slate-700 flex gap-4 justify-center text-xs">
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500"></div><span class="text-gray-400">Preenchido</span></div>
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500"></div><span class="text-gray-400">Pendente</span></div>
+                        </div>
+                        
+                        <div id="owner-msg" class="hidden mt-2 text-center text-xs text-indigo-400 bg-indigo-900/20 p-2 rounded">
+                            Usuário Owner/Admin: Visualização apenas.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- Scripts do Modal de Obs ---
         const modal = document.getElementById('obs-modal');
         const modalText = document.getElementById('modal-text');
         const modalTitle = document.getElementById('modal-title');
@@ -250,15 +242,109 @@
             modalText.textContent = text;
             modal.classList.remove('hidden');
         }
+        function closeModal() { modal.classList.add('hidden'); }
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal.querySelector('.fixed.inset-0.bg-gray-900\\/75')) { closeModal(); }
+        });
 
-        function closeModal() {
-            modal.classList.add('hidden');
+        // --- Scripts do Calendário ---
+        let calDate = new Date();
+        const calendarModal = document.getElementById('calendar-modal');
+        const calLabel = document.getElementById('calendar-month-label');
+        const calGrid = document.getElementById('calendar-grid');
+        const ownerMsg = document.getElementById('owner-msg');
+
+        function openCalendar() {
+            calendarModal.classList.remove('hidden');
+            fetchCalendarData();
         }
 
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal.querySelector('.fixed.inset-0.bg-gray-900\\/75')) {
-                closeModal();
+        function closeCalendar() {
+            calendarModal.classList.add('hidden');
+        }
+
+        function changeMonth(delta) {
+            calDate.setMonth(calDate.getMonth() + delta);
+            fetchCalendarData();
+        }
+
+        async function fetchCalendarData() {
+            calGrid.innerHTML = '<div class="col-span-7 text-center py-8 text-gray-500 text-sm animate-pulse">Buscando dados...</div>';
+            
+            const monthName = calDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            calLabel.textContent = monthName;
+
+            const m = calDate.getMonth() + 1; // JS 0-11, Python 1-12
+            const y = calDate.getFullYear();
+
+            try {
+                const res = await fetch(`/produtividade/api/get-calendar-status/?month=${m}&year=${y}`);
+                const data = await res.json();
+
+                if (data.is_owner) {
+                    ownerMsg.classList.remove('hidden');
+                } else {
+                    ownerMsg.classList.add('hidden');
+                }
+
+                renderCalendar(data.days, y, m);
+
+            } catch (error) {
+                console.error(error);
+                calGrid.innerHTML = '<div class="col-span-7 text-center py-4 text-red-400 text-xs">Erro ao carregar.</div>';
             }
+        }
+
+        function renderCalendar(daysData, year, month) {
+            calGrid.innerHTML = '';
+            
+            // Descobre dia da semana do dia 1 (0=Dom, 1=Seg...)
+            const firstDayIndex = new Date(year, month - 1, 1).getDay();
+
+            // Células vazias antes do dia 1
+            for (let i = 0; i < firstDayIndex; i++) {
+                const empty = document.createElement('div');
+                calGrid.appendChild(empty);
+            }
+
+            // Renderiza dias
+            daysData.forEach(d => {
+                const el = document.createElement('div');
+                // Estilos base + hover + cursor pointer para clique
+                el.className = "h-10 w-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all cursor-pointer hover:scale-110 shadow-sm";
+                
+                el.textContent = d.day;
+
+                // Evento de Clique: Redireciona para o filtro daquele dia
+                if (d.status !== 'future') {
+                    el.onclick = function() {
+                        // Formata a URL de filtro para este dia específico
+                        window.location.href = `?start_date=${d.date}&end_date=${d.date}`;
+                    };
+                } else {
+                    // Dias futuros não clicáveis
+                    el.classList.remove('cursor-pointer', 'hover:scale-110', 'shadow-sm');
+                    el.classList.add('cursor-default', 'opacity-50');
+                }
+
+                if (d.status === 'filled') {
+                    // Verde (Ok)
+                    el.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'hover:bg-emerald-500/30');
+                } else if (d.status === 'missing') {
+                    // Vermelho (Pendente)
+                    el.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50', 'hover:bg-red-500/30');
+                } else {
+                    // Futuro (Cinza)
+                    el.classList.add('bg-slate-800', 'text-gray-600', 'border-slate-700');
+                }
+                
+                calGrid.appendChild(el);
+            });
+        }
+
+        // Fechar calendário ao clicar fora
+        calendarModal.addEventListener('click', function(e) {
+            if (e.target === calendarModal.querySelector('.fixed.inset-0.bg-gray-900\\/80')) { closeCalendar(); }
         });
     </script>
 </body>

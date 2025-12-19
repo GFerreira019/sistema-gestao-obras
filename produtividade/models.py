@@ -5,10 +5,11 @@ from django.core.validators import RegexValidator
 
 # ==============================================================================
 # TABELAS AUXILIARES (CADASTROS)
+# Entidades de apoio para parametrização do sistema
 # ==============================================================================
 
 class Setor(models.Model):
-    """Cadastro de departamentos/setores (ex: Oficina, ADM)."""
+    """Cadastro de departamentos/setores para controle de lotação e permissões de acesso."""
     nome = models.CharField(
         max_length=100, 
         unique=True, 
@@ -16,8 +17,36 @@ class Setor(models.Model):
     ativo = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Setor"
-        verbose_name_plural = "Setores"
+        verbose_name = "Setor (Acesso/Lotação)"
+        verbose_name_plural = "Setores (Acesso/Lotação)"
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+
+class CentroCusto(models.Model):
+    """
+    Entidade para alocação de custos e justificativas operacionais.
+    Utilizado primordialmente para apontamentos realizados fora do ambiente de obra.
+    """
+    nome = models.CharField(
+        max_length=100, 
+        unique=True, 
+        verbose_name="Nome do Centro de Custo / Justificativa")
+    
+    # Define se o motivo de custo exige vínculo com Obra/Cliente
+    permite_alocacao = models.BooleanField(
+        default=False,
+        verbose_name="Permite alocar em Obra/Cliente?",
+        help_text="Se marcado, ao selecionar este item, será solicitado o Código da Obra ou Cliente."
+    )
+    
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Centro de Custo / Justificativa"
+        verbose_name_plural = "Centros de Custo / Justificativas"
         ordering = ['nome']
 
     def __str__(self):
@@ -25,7 +54,7 @@ class Setor(models.Model):
 
 
 class Projeto(models.Model):
-    """Cadastro de Obras e Projetos da empresa."""
+    """Cadastro centralizado de Obras e Projetos ativos da empresa."""
     codigo = models.CharField(
         max_length=50, 
         unique=True, 
@@ -35,8 +64,7 @@ class Projeto(models.Model):
     nome = models.CharField(
         max_length=255, 
         verbose_name="Nome do Projeto")
-    ativo = models.BooleanField(
-        default=True)
+    ativo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Projeto/Obra"
@@ -48,7 +76,7 @@ class Projeto(models.Model):
 
 
 class CodigoCliente(models.Model):
-    """Cadastro de Códigos Gerais de Cliente (4 Dígitos)."""
+    """Cadastro de Códigos Gerais de Cliente padronizados com 4 dígitos."""
     codigo = models.CharField(
         max_length=4, 
         unique=True, 
@@ -60,8 +88,7 @@ class CodigoCliente(models.Model):
     nome = models.CharField(
         max_length=255, 
         verbose_name="Nome do Cliente")
-    ativo = models.BooleanField(
-        default=True)
+    ativo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Código do Cliente"
@@ -74,20 +101,17 @@ class CodigoCliente(models.Model):
 
 class Colaborador(models.Model):
     """
-    Cadastro de funcionários e prestadores de serviço.
-    Associa a entidade de negócio ao Usuário Django para controle de acesso.
+    Entidade que estende o Usuário do Django para regras de negócio.
+    Associa funcionários a cargos, setores de lotação e permissões de gestão.
     """
     id_colaborador = models.CharField(
         max_length=50, 
         unique=True, 
         verbose_name="ID Colaborador")
-    nome_completo = models.CharField(
-        max_length=255)
-    cargo = models.CharField(
-        max_length=100, 
-        default='Operador')
+    nome_completo = models.CharField(max_length=255)
+    cargo = models.CharField(max_length=100, default='Operador')
     
-    # --- RBAC e Associação ---
+    # --- Associação com Segurança (RBAC) ---
     user_account = models.OneToOneField(
         User, 
         on_delete=models.SET_NULL, 
@@ -96,7 +120,6 @@ class Colaborador(models.Model):
         verbose_name="Conta de Usuário (Login)"
     )
     
-    # Setor onde o colaborador trabalha (Lotação)
     setor = models.ForeignKey(
         Setor, 
         on_delete=models.SET_NULL, 
@@ -105,8 +128,7 @@ class Colaborador(models.Model):
         verbose_name="Setor de Alocação"
     )
 
-    # === NOVO CAMPO: Para ADMINISTRATIVO e GESTOR ===
-    # Define quais setores este usuário pode visualizar/gerenciar
+    # Define visibilidade administrativa sobre outros setores
     setores_gerenciados = models.ManyToManyField(
         Setor,
         blank=True,
@@ -124,7 +146,7 @@ class Colaborador(models.Model):
 
 
 class Veiculo(models.Model):
-    """Cadastro da frota oficial da empresa."""
+    """Cadastro da frota oficial e veículos de apoio da empresa."""
     placa = models.CharField(
         max_length=10, 
         unique=True, 
@@ -147,15 +169,16 @@ class Veiculo(models.Model):
 
 # ==============================================================================
 # TABELA PRINCIPAL (CORE)
+# Persistência dos registros de apontamento de horas
 # ==============================================================================
 
 class Apontamento(models.Model):
     """
-    Registro diário de horas trabalhadas (Timesheet).
-    Centraliza informações de colaborador, local, horários e recursos utilizados.
+    Registro principal de Timesheet.
+    Armazena a jornada diária, local de execução, veículos e auxiliares envolvidos.
     """
     
-    # --- Constantes de Escolha ---
+    # --- Opções de Escolha ---
     LOCAL_CHOICES = [
         ('INT', 'Dentro da obra'), 
         ('EXT', 'Fora da obra')
@@ -168,7 +191,7 @@ class Apontamento(models.Model):
         ('SED', 'Sede ATGB')
     ]
 
-    # --- 1. Identificação Básica ---
+    # --- 1. Identificação e Tempo ---
     colaborador = models.ForeignKey(
         Colaborador, 
         on_delete=models.PROTECT, 
@@ -176,6 +199,10 @@ class Apontamento(models.Model):
     data_apontamento = models.DateField(
         default=timezone.now, 
         verbose_name="Data")
+    hora_inicio = models.TimeField(verbose_name="Hora Início")
+    hora_termino = models.TimeField(verbose_name="Hora Término")
+    
+    # --- 2. Localização e Contexto ---
     local_execucao = models.CharField(
         max_length=3, 
         choices=LOCAL_CHOICES, 
@@ -183,26 +210,6 @@ class Apontamento(models.Model):
         verbose_name="Local de Execução"
     )
     
-    # --- 2. Gestão de Veículos (Híbrida) ---
-    veiculo = models.ForeignKey(
-        Veiculo, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name="Veículo Cadastrado"
-    )
-    veiculo_manual_modelo = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        verbose_name="Modelo (Manual)")
-    veiculo_manual_placa = models.CharField(
-        max_length=20, 
-        blank=True, 
-        null=True, 
-        verbose_name="Placa (Manual)")
-
-    # --- 3. Contexto do Trabalho (Condicional) ---
     projeto = models.ForeignKey(
         Projeto, 
         on_delete=models.SET_NULL, 
@@ -218,38 +225,37 @@ class Apontamento(models.Model):
         verbose_name="Código do Cliente"
     )
 
-    local_inicio_jornada = models.CharField(
-        max_length=3, 
-        choices=TANGERINO_CHOICES, 
-        null=True, 
-        blank=True, 
-        verbose_name="Início Jornada"
-    )
-    local_inicio_jornada_outros = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        verbose_name="Detalhe Outros")
-    
-    # O Setor só é gravado aqui para saber o local do apontamento EXT.
-    setor = models.ForeignKey(
-        Setor, 
+    centro_custo = models.ForeignKey(
+        CentroCusto, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
-        verbose_name="Setor Apontado (Fora)") 
+        verbose_name="Setor / Justificativa (Custo)") 
 
-    # --- 4. Detalhes do Apontamento ---
-    hora_inicio = models.TimeField(
-        verbose_name="Hora Início")
-    hora_termino = models.TimeField(
-        verbose_name="Hora Término")
-    ocorrencias = models.TextField(
-        blank=True, 
+    # --- 3. Gestão de Veículos (Híbrida) ---
+    veiculo = models.ForeignKey(
+        Veiculo, 
+        on_delete=models.SET_NULL, 
         null=True, 
-        verbose_name="Ocorrências / Obs.")
+        blank=True, 
+        verbose_name="Veículo Cadastrado"
+    )
+    veiculo_manual_modelo = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name="Modelo (Manual)")
+    veiculo_manual_placa = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name="Placa (Manual)")
+
+    # --- 4. Conciliação de Jornada (Tangerino) ---
+    local_inicio_jornada = models.CharField(
+        max_length=3, choices=TANGERINO_CHOICES, null=True, blank=True, verbose_name="Início Jornada"
+    )
+    local_inicio_jornada_outros = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name="Detalhe Outros")
     
-    # --- 5. Recursos Adicionais (Equipe) ---
+    # --- 5. Equipe e Ocorrências ---
+    ocorrencias = models.TextField(
+        blank=True, null=True, verbose_name="Ocorrências / Obs.")
+    
     auxiliar = models.ForeignKey(
         Colaborador, 
         on_delete=models.SET_NULL, 
@@ -258,19 +264,12 @@ class Apontamento(models.Model):
         related_name='apontamentos_auxiliados'
     )
     auxiliares_extras_ids = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True)
+        max_length=255, blank=True, null=True)
 
-    # --- 6. Metadados de Auditoria ---
+    # --- 6. Auditoria ---
     registrado_por = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name="Usuário de Registro")
-    data_registro = models.DateTimeField(
-        auto_now_add=True)
+        User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário de Registro")
+    data_registro = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Apontamento"
