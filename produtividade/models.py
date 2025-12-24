@@ -2,18 +2,21 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 
 # ==============================================================================
 # TABELAS AUXILIARES (CADASTROS)
-# Entidades de apoio para parametrização do sistema
 # ==============================================================================
 
 class Setor(models.Model):
-    """Cadastro de departamentos/setores para controle de lotação e permissões de acesso."""
+    """
+    Cadastro de departamentos/setores para controle de lotação e permissões de acesso.
+    """
     nome = models.CharField(
         max_length=100, 
         unique=True, 
-        verbose_name="Nome do Setor")
+        verbose_name="Nome do Setor"
+    )
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -28,14 +31,13 @@ class Setor(models.Model):
 class CentroCusto(models.Model):
     """
     Entidade para alocação de custos e justificativas operacionais.
-    Utilizado primordialmente para apontamentos realizados fora do ambiente de obra.
     """
     nome = models.CharField(
         max_length=100, 
         unique=True, 
-        verbose_name="Nome do Centro de Custo / Justificativa")
+        verbose_name="Nome do Centro de Custo / Justificativa"
+    )
     
-    # Define se o motivo de custo exige vínculo com Obra/Cliente
     permite_alocacao = models.BooleanField(
         default=False,
         verbose_name="Permite alocar em Obra/Cliente?",
@@ -54,16 +56,20 @@ class CentroCusto(models.Model):
 
 
 class Projeto(models.Model):
-    """Cadastro centralizado de Obras e Projetos ativos da empresa."""
+    """
+    Cadastro centralizado de Obras e Projetos ativos da empresa.
+    """
     codigo = models.CharField(
         max_length=50, 
         unique=True, 
         verbose_name="Código da Obra", 
         null=True, 
-        blank=True)
+        blank=True
+    )
     nome = models.CharField(
         max_length=255, 
-        verbose_name="Nome do Projeto")
+        verbose_name="Nome do Projeto"
+    )
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -76,18 +82,22 @@ class Projeto(models.Model):
 
 
 class CodigoCliente(models.Model):
-    """Cadastro de Códigos Gerais de Cliente padronizados com 4 dígitos."""
+    """
+    Cadastro de Códigos Gerais de Cliente padronizados com 4 dígitos.
+    """
     codigo = models.CharField(
         max_length=4, 
         unique=True, 
         verbose_name="Cód. Cliente (4 Dígitos)",
         validators=[RegexValidator(
             regex=r'^\d{4}$', 
-            message='O código deve ter exatamente 4 dígitos numéricos.')]
+            message='O código deve ter exatamente 4 dígitos numéricos.'
+        )]
     )
     nome = models.CharField(
         max_length=255, 
-        verbose_name="Nome do Cliente")
+        verbose_name="Nome do Cliente"
+    )
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -102,16 +112,15 @@ class CodigoCliente(models.Model):
 class Colaborador(models.Model):
     """
     Entidade que estende o Usuário do Django para regras de negócio.
-    Associa funcionários a cargos, setores de lotação e permissões de gestão.
     """
     id_colaborador = models.CharField(
         max_length=50, 
         unique=True, 
-        verbose_name="ID Colaborador")
+        verbose_name="ID Colaborador"
+    )
     nome_completo = models.CharField(max_length=255)
     cargo = models.CharField(max_length=100, default='Operador')
     
-    # --- Associação com Segurança (RBAC) ---
     user_account = models.OneToOneField(
         User, 
         on_delete=models.SET_NULL, 
@@ -128,7 +137,6 @@ class Colaborador(models.Model):
         verbose_name="Setor de Alocação"
     )
 
-    # Define visibilidade administrativa sobre outros setores
     setores_gerenciados = models.ManyToManyField(
         Setor,
         blank=True,
@@ -146,16 +154,20 @@ class Colaborador(models.Model):
 
 
 class Veiculo(models.Model):
-    """Cadastro da frota oficial e veículos de apoio da empresa."""
+    """
+    Cadastro da frota oficial e veículos de apoio da empresa.
+    """
     placa = models.CharField(
         max_length=10, 
         unique=True, 
-        verbose_name="Placa")
+        verbose_name="Placa"
+    )
     descricao = models.CharField(
         max_length=100, 
         blank=True, 
         null=True, 
-        verbose_name="Modelo/Descrição")
+        verbose_name="Modelo/Descrição"
+    )
 
     class Meta:
         verbose_name = "Veículo"
@@ -169,16 +181,13 @@ class Veiculo(models.Model):
 
 # ==============================================================================
 # TABELA PRINCIPAL (CORE)
-# Persistência dos registros de apontamento de horas
 # ==============================================================================
 
 class Apontamento(models.Model):
     """
     Registro principal de Timesheet.
-    Armazena a jornada diária, local de execução, veículos e auxiliares envolvidos.
     """
     
-    # --- Opções de Escolha ---
     LOCAL_CHOICES = [
         ('INT', 'Dentro da obra'), 
         ('EXT', 'Fora da obra')
@@ -195,10 +204,12 @@ class Apontamento(models.Model):
     colaborador = models.ForeignKey(
         Colaborador, 
         on_delete=models.PROTECT, 
-        verbose_name="Colaborador")
+        verbose_name="Colaborador"
+    )
     data_apontamento = models.DateField(
         default=timezone.now, 
-        verbose_name="Data")
+        verbose_name="Data"
+    )
     hora_inicio = models.TimeField(verbose_name="Hora Início")
     hora_termino = models.TimeField(verbose_name="Hora Término")
     
@@ -215,7 +226,8 @@ class Apontamento(models.Model):
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
-        verbose_name="Projeto")
+        verbose_name="Projeto"
+    )
 
     codigo_cliente = models.ForeignKey(
         CodigoCliente, 
@@ -230,7 +242,8 @@ class Apontamento(models.Model):
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
-        verbose_name="Setor / Justificativa (Custo)") 
+        verbose_name="Setor / Justificativa (Custo)"
+    ) 
 
     # --- 3. Gestão de Veículos (Híbrida) ---
     veiculo = models.ForeignKey(
@@ -241,20 +254,24 @@ class Apontamento(models.Model):
         verbose_name="Veículo Cadastrado"
     )
     veiculo_manual_modelo = models.CharField(
-        max_length=100, blank=True, null=True, verbose_name="Modelo (Manual)")
+        max_length=100, blank=True, null=True, verbose_name="Modelo (Manual)"
+    )
     veiculo_manual_placa = models.CharField(
-        max_length=20, blank=True, null=True, verbose_name="Placa (Manual)")
+        max_length=20, blank=True, null=True, verbose_name="Placa (Manual)"
+    )
 
     # --- 4. Conciliação de Jornada (Tangerino) ---
     local_inicio_jornada = models.CharField(
         max_length=3, choices=TANGERINO_CHOICES, null=True, blank=True, verbose_name="Início Jornada"
     )
     local_inicio_jornada_outros = models.CharField(
-        max_length=100, blank=True, null=True, verbose_name="Detalhe Outros")
+        max_length=100, blank=True, null=True, verbose_name="Detalhe Outros"
+    )
     
     # --- 5. Equipe e Ocorrências ---
     ocorrencias = models.TextField(
-        blank=True, null=True, verbose_name="Ocorrências / Obs.")
+        blank=True, null=True, verbose_name="Ocorrências / Obs."
+    )
     
     auxiliar = models.ForeignKey(
         Colaborador, 
@@ -263,13 +280,53 @@ class Apontamento(models.Model):
         blank=True, 
         related_name='apontamentos_auxiliados'
     )
-    auxiliares_extras_ids = models.CharField(
-        max_length=255, blank=True, null=True)
+    auxiliares_extras = models.ManyToManyField(
+        Colaborador,
+        blank=True,
+        related_name='apontamentos_como_extra',
+        verbose_name="Auxiliares Extras"
+    )
 
-    # --- 6. Auditoria ---
+    # --- 6. Adicionais de Folha ---
+    em_plantao = models.BooleanField(
+        default=False, 
+        verbose_name="Atividade em Plantão?"
+    )
+    dorme_fora = models.BooleanField(
+        default=False, 
+        verbose_name="Dorme Fora Nesta Data?"
+    )
+    data_dorme_fora = models.DateField(
+        null=True, 
+        blank=True, 
+        verbose_name="Data do Pernoite"
+    )
+
+    # --- 7. Auditoria ---
     registrado_por = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário de Registro")
+        User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário de Registro"
+    )
     data_registro = models.DateTimeField(auto_now_add=True)
+
+    # --- 8. Controle de Ajustes (Solicitações) ---
+    motivo_ajuste = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Motivo do Ajuste"
+    )
+    
+    STATUS_AJUSTE_CHOICES = [
+        ('PENDENTE', 'Pendente'),
+        ('APROVADO', 'Aprovado'),
+    ]
+    
+    status_ajuste = models.CharField(
+        max_length=20,
+        choices=STATUS_AJUSTE_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name="Status da Solicitação"
+    )
 
     class Meta:
         verbose_name = "Apontamento"

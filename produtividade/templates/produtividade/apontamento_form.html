@@ -20,7 +20,7 @@
         #id_local_inicio_jornada { display: flex; flex-direction: column; gap: 0.5rem; }
         #id_local_inicio_jornada div { display: flex; align-items: center; gap: 0.5rem; }
         #id_local_inicio_jornada label { cursor: pointer; color: #cbd5e1; }
-        input[type="radio"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; }
+        input[type="radio"], input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; cursor: pointer; }
 
         /* Select2 Dark */
         .select2-container { width: 100% !important; }
@@ -39,6 +39,9 @@
             background-color: #6366f1 !important; color: white !important;
         }
         .errorlist { list-style: none; padding: 0; margin: 0; }
+        
+        /* Grid do Calendário */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-200 p-4 sm:p-8 flex justify-center">
@@ -59,52 +62,16 @@
     {% endif %}
 
     <div class="w-full max-w-4xl">
-        
         <div class="mb-6 border-b border-slate-800 pb-4 flex items-center justify-between relative">
-            <div>
-                <h2 class="text-3xl font-bold text-white">{{ titulo }}</h2>
-                <p class="text-gray-400 text-sm">Relatório de Horas</p>
-            </div>
-            
+            <div><h2 class="text-3xl font-bold text-white">{{ titulo }}</h2><p class="text-gray-400 text-sm">Relatório de Horas</p></div>
             <div class="flex items-center gap-4">
-                <a href="{% url 'historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
-                    </svg>
-                    Ver Histórico
-                </a>
-
+                <a href="{% url 'historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" /></svg>Ver Histórico</a>
                 <div class="relative group z-50">
-                    <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg cursor-pointer ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900 shadow-lg hover:bg-indigo-500 transition-colors">
-                        {{ user.username|slice:":1"|upper }}
-                    </div>
-                    
+                    <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg cursor-pointer ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900 shadow-lg hover:bg-indigo-500 transition-colors">{{ user.username|slice:":1"|upper }}</div>
                     <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
-                        <div class="px-4 py-3 border-b border-slate-700">
-                            <p class="text-sm text-white font-bold truncate">
-                                {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}
-                            </p>
-                            <p class="text-xs text-gray-400 truncate">Conectado</p>
-                        </div>
-                        
-                        <a href="{% url 'configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 01 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 01 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 01 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
-                            Configurações
-                        </a>
-
-                        <form method="post" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                                    <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" />
-                                    <path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" />
-                                </svg>
-                                Sair do Sistema
-                            </button>
-                        </form>
+                        <div class="px-4 py-3 border-b border-slate-700"><p class="text-sm text-white font-bold truncate">{% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}</p><p class="text-xs text-gray-400 truncate">Conectado</p></div>
+                        <a href="{% url 'configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>Configurações</a>
+                        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" /></svg>Sair do Sistema</button></form>
                     </div>
                 </div>
             </div>
@@ -112,6 +79,7 @@
 
         <form method="post" class="space-y-6" id="apontamentoForm">
             {% csrf_token %}
+            {{ form.data_dorme_fora }} 
             
             <div id="server-error-container" class="hidden">
                 {% if form.non_field_errors %}
@@ -125,7 +93,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label class="text-xs text-gray-400 mb-1 block">Colaborador *</label>{{ form.colaborador }}</div>
                     <div><label class="text-xs text-gray-400 mb-1 block">Cargo</label>{{ form.cargo_colaborador }}</div>
-                    <div><label class="text-xs text-gray-400 mb-1 block">Data *</label>{{ form.data_apontamento }}</div>
+                    
+                    <div>
+                        <label class="text-xs text-gray-400 mb-1 block">Data *</label>
+                        {{ form.data_apontamento }}
+                    </div>
+
                     <div><label class="text-xs text-white font-bold mb-1 block">Local de Trabalho *</label>{{ form.local_execucao }}</div>
                     <div class="md:col-span-2 bg-slate-800/50 p-4 rounded border border-slate-700">
                         <div class="flex items-center gap-3">
@@ -136,11 +109,7 @@
                             <div><label class="text-xs text-gray-400 mb-1 block">Selecione o Veículo</label>{{ form.veiculo_selecao }}</div>
                             <div id="novo-veiculo-container" class="hidden grid grid-cols-2 gap-4 border-l-2 border-indigo-500 pl-3 mt-2 bg-slate-800 p-2 rounded">
                                 <div><label class="text-xs text-indigo-400 block mb-1">Modelo (Ex: HB20) *</label>{{ form.veiculo_manual_modelo }}</div>
-                                <div>
-                                    <label class="text-xs text-indigo-400 block mb-1">Placa (7 dígitos) *</label>
-                                    {{ form.veiculo_manual_placa }}
-                                    {% if form.veiculo_manual_placa.errors %}<p class="text-red-400 text-xs">{{ form.veiculo_manual_placa.errors }}</p>{% endif %}
-                                </div>
+                                <div><label class="text-xs text-indigo-400 block mb-1">Placa (7 dígitos) *</label>{{ form.veiculo_manual_placa }}{% if form.veiculo_manual_placa.errors %}<p class="text-red-400 text-xs">{{ form.veiculo_manual_placa.errors }}</p>{% endif %}</div>
                             </div>
                             {% if form.veiculo_selecao.errors %}<p class="text-red-400 text-xs mt-1">{{ form.veiculo_selecao.errors }}</p>{% endif %}
                         </div>
@@ -148,36 +117,22 @@
                 </div>
             </div>
 
-            {# NOTA: Este container agora abriga o wrapper de inputs e o wrapper do tangerino #}
             <div id="container-obra" class="hidden bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
                 <h3 class="text-emerald-400 font-bold mb-6 text-lg uppercase tracking-wider">Dados da Obra</h3>
-                
                 <div id="inputs-obra-wrapper" class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 mb-6">
                     <p class="text-xs text-yellow-500 font-bold mb-2 uppercase">Código do Cliente apenas setores que não possuirem o adendo</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="text-xs text-emerald-300 mb-1 block font-bold">Código da Obra (com adendo)</label>
-                            {{ form.projeto }}
-                            <p class="text-[10px] text-gray-500 mt-1">Ex: R1894A00 - Vintage...</p>
-                        </div>
-                        <div>
-                            <label class="text-xs text-blue-300 mb-1 block font-bold">Código do Cliente (Geral)</label>
-                            {{ form.codigo_cliente }}
-                            <p class="text-[10px] text-gray-500 mt-1">Ex: 1894 - Vintage...</p>
-                        </div>
+                        <div><label class="text-xs text-emerald-300 mb-1 block font-bold">Código da Obra (com adendo)</label>{{ form.projeto }}<p class="text-[10px] text-gray-500 mt-1">Ex: R1894A00 - Vintage...</p></div>
+                        <div><label class="text-xs text-blue-300 mb-1 block font-bold">Código do Cliente (Geral)</label>{{ form.codigo_cliente }}<p class="text-[10px] text-gray-500 mt-1">Ex: 1894 - Vintage...</p></div>
                     </div>
                 </div>
-
                 <div id="insertion-point-obra" class="mt-6"></div>
-                
                 <div id="tangerino-wrapper" class="mt-6 pt-6 border-t border-slate-800">
                     <div class="bg-slate-800/80 p-4 rounded border border-emerald-700/50">
                         <label class="font-bold text-sm text-white mb-3 block">Início da jornada (primeiro ponto no Tangerino) *</label>
                         <div class="pl-2">{{ form.local_inicio_jornada }}</div>
-                        <div id="tangerino-outros-container" class="hidden mt-3 pl-2 border-l-2 border-emerald-500">
-                            <label class="text-xs text-emerald-400 block mb-1">Especifique o Local *</label>{{ form.local_inicio_jornada_outros }}
-                        </div>
+                        <div id="tangerino-outros-container" class="hidden mt-3 pl-2 border-l-2 border-emerald-500"><label class="text-xs text-emerald-400 block mb-1">Especifique o Local *</label>{{ form.local_inicio_jornada_outros }}</div>
                     </div>
                 </div>
             </div>
@@ -186,10 +141,7 @@
                 <div class="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                 <h3 class="text-orange-400 font-bold mb-6 text-lg uppercase tracking-wider">Fora da Obra</h3>
                 <div class="mb-6"><label class="text-xs text-orange-400 font-bold mb-1 block">Setor / Justificativa (Custo) *</label>{{ form.centro_custo }}</div>
-                
-                <div id="dynamic-obra-injection"></div>
-
-                <div id="insertion-point-fora"></div>
+                <div id="dynamic-obra-injection"></div><div id="insertion-point-fora"></div>
             </div>
 
             <div id="common-fields-block" class="hidden">
@@ -208,14 +160,52 @@
                             <button type="button" id="btn-add-extra" class="text-xs text-indigo-400 font-bold hover:text-white transition-colors">+ Add. Auxiliar</button>
                         </div>
                     </div>
+                    <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-slate-800/30 p-3 rounded border border-slate-700/50">
+                        <div class="flex items-center gap-2">
+                            {{ form.em_plantao }}
+                            <label for="{{ form.em_plantao.id_for_label }}" class="text-sm text-gray-300 cursor-pointer select-none hover:text-white">Atividade em Plantão?</label>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                                {{ form.dorme_fora }}
+                                <label for="{{ form.dorme_fora.id_for_label }}" class="text-sm text-gray-300 cursor-pointer select-none hover:text-white">Dorme Fora Nesta Data?</label>
+                            </div>
+                            <p id="data-pernoite-feedback" class="text-xs text-orange-400 hidden ml-6">Data Pernoite: <span id="data-pernoite-display" class="font-bold">--/--/--</span></p>
+                        </div>
+                    </div>
                     <div class="md:col-span-2"><label class="text-xs text-gray-400 mb-1 block">Ocorrências / Obs.</label>{{ form.ocorrencias }}</div>
                 </div>
             </div>
 
-            <div class="flex justify-end pt-4">
-                <button type="button" id="btn-pre-save" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg w-full md:w-auto transition-colors">Salvar Registro</button>
-            </div>
+            <div class="flex justify-end pt-4"><button type="button" id="btn-pre-save" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg w-full md:w-auto transition-colors">Salvar Registro</button></div>
         </form>
+    </div>
+
+    <div id="date-picker-modal" class="relative z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/90 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white font-bold" id="picker-title">Selecione a Data</h3>
+                        <button onclick="closeDateModal()" class="text-gray-400 hover:text-white">&times;</button>
+                    </div>
+                    <div class="flex justify-between items-center text-white mb-4">
+                        <button onclick="changePickerMonth(-1)" class="p-1 hover:bg-slate-700 rounded">&lt;</button>
+                        <span id="picker-month-label" class="font-bold uppercase text-sm"></span>
+                        <button onclick="changePickerMonth(1)" class="p-1 hover:bg-slate-700 rounded">&gt;</button>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                        <div class="text-xs text-gray-500">D</div><div class="text-xs text-gray-500">S</div><div class="text-xs text-gray-500">T</div><div class="text-xs text-gray-500">Q</div><div class="text-xs text-gray-500">Q</div><div class="text-xs text-gray-500">S</div><div class="text-xs text-gray-500">S</div>
+                    </div>
+                    <div id="picker-grid" class="grid grid-cols-7 gap-1 text-sm"></div>
+                    <div class="mt-4 pt-4 border-t border-slate-700 flex gap-4 justify-center text-[10px]">
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 border border-blue-500"></div><span class="text-gray-400">Hoje</span></div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 border border-indigo-500"></div><span class="text-gray-400">Data Registro</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="confirm-modal" class="relative z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -239,75 +229,67 @@
 
     <script>
         $(document).ready(function() {
-            // Inicialização Select2
-            $('#id_colaborador').select2({ placeholder: "Pesquisar Colaborador..." });
+            $('#id_colaborador').select2({ 
+                placeholder: "Pesquisar Colaborador..." 
+            });
+
+            $('#id_colaborador').on('select2:select', async function (e) {
+                const val = e.params.data.id;
+                
+                if(val) {
+                    try {
+                        let urlTemplate = "{% url 'get_colaborador_info' 0 %}";
+                        const finalUrl = urlTemplate.replace('0', val);
+
+                        const r = await fetch(finalUrl);
+                        const d = await r.json();
+                        
+                        document.getElementById('id_cargo_colaborador').value = d.cargo;
+                    } catch (error) {
+                        console.error("Erro ao buscar cargo:", error);
+                        document.getElementById('id_cargo_colaborador').value = "-";
+                    }
+                } else {
+                    document.getElementById('id_cargo_colaborador').value = "-";
+                }
+            });
             $('#id_veiculo_selecao').select2({ placeholder: "Pesquisar Veículo..." });
+            $('#id_local_execucao').select2({ minimumResultsForSearch: Infinity });
             $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true });
             $('#id_codigo_cliente').select2({ placeholder: "Pesquisar Código do Cliente...", allowClear: true });
             $('#id_centro_custo').select2({ placeholder: "Pesquisar Centro de Custo / Justificativa..." });
             $('#id_auxiliar_selecao').select2({ placeholder: "Pesquisar Auxiliar..." });
             
-            // Lógica de Exclusividade (Obra vs Cliente)
-            $('#id_projeto').on('select2:select', function (e) {
-                $('#id_codigo_cliente').val(null).trigger('change'); 
-            });
-            $('#id_codigo_cliente').on('select2:select', function (e) {
-                $('#id_projeto').val(null).trigger('change'); 
-            });
+            $('#id_projeto').on('select2:select', function (e) { $('#id_codigo_cliente').val(null).trigger('change'); });
+            $('#id_codigo_cliente').on('select2:select', function (e) { $('#id_projeto').val(null).trigger('change'); });
             
-            // Re-render Select2 ao mudar visibilidade
-            $('#id_local_execucao').change(function() { 
-                setTimeout(function() { 
-                    $('#id_projeto').select2(); 
-                    $('#id_codigo_cliente').select2(); 
-                    $('#id_centro_custo').select2(); 
-                }, 100); 
-            });
+            $('#id_local_execucao').change(function() { setTimeout(function() { $('#id_projeto').select2(); $('#id_codigo_cliente').select2(); $('#id_centro_custo').select2(); }, 100); });
             
-            // Veículo Manual Toggle
-            $('#id_veiculo_selecao').on('select2:select', function(e) {
-                const val = e.params.data.id; toggleNovoVeiculo(val);
-            });
+            $('#id_veiculo_selecao').on('select2:select', function(e) { toggleNovoVeiculo(e.params.data.id); });
             toggleNovoVeiculo($('#id_veiculo_selecao').val());
             function toggleNovoVeiculo(val) {
                 const novoContainer = $('#novo-veiculo-container');
                 if(val === 'OUTRO') { novoContainer.removeClass('hidden'); } else { novoContainer.addClass('hidden'); $('#id_veiculo_manual_modelo').val(''); $('#id_veiculo_manual_placa').val(''); }
             }
 
-            // --- LÓGICA DINÂMICA DE OBRA EXTERNA ---
-            $('#id_centro_custo').on('select2:select', function(e) {
-                const val = e.params.data.id;
-                checkCentroCusto(val);
-            });
-
-            // Se for edição e já tiver valor, roda ao carregar
-            const initialCC = $('#id_centro_custo').val();
-            if(initialCC) checkCentroCusto(initialCC);
+            $('#id_centro_custo').on('select2:select', function(e) { checkCentroCusto(e.params.data.id); });
+            const initialCC = $('#id_centro_custo').val(); if(initialCC) checkCentroCusto(initialCC);
 
             async function checkCentroCusto(id) {
                 if(!id) return;
                 try {
-                    // Consulta API para saber se permite alocação
                     const r = await fetch(`/produtividade/api/get-centro-custo-info/${id}/`);
                     const d = await r.json();
-                    
                     const inputsWrapper = document.getElementById('inputs-obra-wrapper');
                     const injectionPoint = document.getElementById('dynamic-obra-injection');
-                    const originalParent = document.querySelector('#container-obra'); // Onde ele fica originalmente
-
+                    const originalParent = document.querySelector('#container-obra'); 
                     if (d.permite_alocacao) {
-                        // Move os inputs para dentro do container EXTERNO
                         injectionPoint.appendChild(inputsWrapper);
-                        // Re-inicializa select2 pois mover elementos no DOM pode quebrar
                         $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true });
                         $('#id_codigo_cliente').select2({ placeholder: "Pesquisar Código do Cliente...", allowClear: true });
                     } else {
-                        // Devolve para o container INT (Original) e limpa valores
-                        // Insere antes do insertion-point-obra para manter ordem
                         const ref = document.getElementById('insertion-point-obra');
                         originalParent.insertBefore(inputsWrapper, ref);
-                        
-                        // Se estamos em modo EXT e não permite alocação, limpa os campos visualmente
                         if ($('#id_local_execucao').val() === 'EXT') {
                             $('#id_projeto').val(null).trigger('change');
                             $('#id_codigo_cliente').val(null).trigger('change');
@@ -318,6 +300,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
+            // ... (Resto do DOMContentLoaded mantido, inserindo apenas a nova lógica do DatePicker) ...
             const placaInput = document.getElementById('id_veiculo_manual_placa');
             if(placaInput) { placaInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); }); }
 
@@ -332,29 +315,15 @@
             function updateLayout() {
                 const val = localSel.value;
                 commonBlock.classList.remove('hidden');
-                
                 if(val === 'INT') { 
-                    // Modo INT: Mostra container obra completo (Tangerino + Inputs)
-                    boxObra.classList.remove('hidden'); 
-                    boxFora.classList.add('hidden'); 
-                    insertObra.appendChild(commonBlock); 
-                    
-                    // Garante que inputs de obra voltem para cá
-                    const ref = document.getElementById('insertion-point-obra');
-                    boxObra.insertBefore(inputsWrapper, ref);
-                } 
-                else { 
-                    // Modo EXT: Esconde container Obra (Tangerino), Mostra Fora
-                    boxObra.classList.add('hidden'); 
-                    boxFora.classList.remove('hidden'); 
-                    insertFora.appendChild(commonBlock); 
-                    
-                    // O checkCentroCusto irá decidir se move os inputs para cá ou não
+                    boxObra.classList.remove('hidden'); boxFora.classList.add('hidden'); insertObra.appendChild(commonBlock); 
+                    const ref = document.getElementById('insertion-point-obra'); boxObra.insertBefore(inputsWrapper, ref);
+                } else { 
+                    boxObra.classList.add('hidden'); boxFora.classList.remove('hidden'); insertFora.appendChild(commonBlock); 
                 }
             }
             if(localSel) { localSel.addEventListener('change', updateLayout); setTimeout(updateLayout, 50); }
 
-            // ... (Restante do código JS igual: Radios Tangerino, Check Veículo, Auxiliares) ...
             const radios = document.querySelectorAll('input[name="local_inicio_jornada"]');
             const outrosContainer = document.getElementById('tangerino-outros-container');
             radios.forEach(radio => {
@@ -363,52 +332,216 @@
                     else { outrosContainer.classList.add('hidden'); document.getElementById('id_local_inicio_jornada_outros').value = ''; }
                 });
             });
+
             const vCheck = document.getElementById('id_registrar_veiculo');
             const vCont = document.getElementById('veiculo-container');
             if(vCheck) vCheck.addEventListener('change', () => vCheck.checked ? vCont.classList.remove('hidden') : vCont.classList.add('hidden'));
-            
+
             const auxCheck = document.getElementById('id_registrar_auxiliar');
             const auxWrap = document.querySelector('.aux-wrapper');
             const mainAux = document.getElementById('id_auxiliar_selecao');
-            const btnAddExtra = document.getElementById('btn-add-extra');
-            const containerExtras = document.getElementById('extras-container');
-            const hiddenList = document.getElementById('id_auxiliares_extras_list');
+
             if(auxCheck) {
-                const toggleAux = () => {
-                    if(auxCheck.checked) { auxWrap.classList.remove('hidden'); if(mainAux.options.length <= 1) loadAuxs(mainAux); } else { auxWrap.classList.add('hidden'); }
-                };
+                const toggleAux = () => { if(auxCheck.checked) { auxWrap.classList.remove('hidden'); if(mainAux.options.length <= 1) loadAuxs(mainAux); } else { auxWrap.classList.add('hidden'); } };
                 auxCheck.addEventListener('change', toggleAux); toggleAux();
             }
-            async function loadAuxs(selectElement) {
+
+            async function loadAuxs(selectElement, selectedValue = null) {
                 try {
-                    const r = await fetch('/produtividade/api/get-auxiliares/');
+                    const url = "{% url 'get_auxiliares' %}"; 
+                    const r = await fetch(url);
                     const d = await r.json();
+                    
                     selectElement.innerHTML = '<option value="">Selecione...</option>';
+                    
                     d.auxiliares.forEach(aux => {
                         const option = document.createElement('option');
-                        option.value = aux.id; option.textContent = aux.nome; selectElement.appendChild(option);
+                        option.value = aux.id;
+                        option.textContent = aux.nome_completo; 
+                        
+                        if (selectedValue && String(aux.id) === String(selectedValue)) {
+                            option.selected = true;
+                        }
+                        selectElement.appendChild(option);
                     });
-                } catch(e) {}
+                } catch(e) {
+                    console.error("Erro ao carregar auxiliares:", e);
+                }
             }
-            if(btnAddExtra) {
-                btnAddExtra.addEventListener('click', async () => {
-                    const newSel = document.createElement('select'); newSel.className = "form-control mt-2 text-sm"; await loadAuxs(newSel);
-                    const div = document.createElement('div'); div.className = "flex items-center gap-2";
-                    const btnRemove = document.createElement('button'); btnRemove.type = "button"; btnRemove.innerHTML = "&times;"; btnRemove.className = "text-red-500 font-bold px-2 text-xl hover:text-red-400";
-                    newSel.addEventListener('change', updateHidden); btnRemove.addEventListener('click', () => { div.remove(); updateHidden(); });
-                    div.append(newSel, btnRemove); containerExtras.appendChild(div);
+
+            // ======================================================
+            // CORREÇÃO 2: Lógica de Adicionar Extra
+            // ======================================================
+            const containerExtras = document.getElementById('extras-container');
+            const btnAddExtra = document.getElementById('btn-add-extra');
+            const hiddenList = document.getElementById('id_auxiliares_extras_list');
+
+            // Função auxiliar para criar o HTML do select extra
+            async function createExtraSelect(selectedValue = null) {
+                const div = document.createElement('div'); 
+                div.className = "flex items-center gap-2 w-full mb-2"; 
+                
+                const newSel = document.createElement('select'); 
+                newSel.className = "form-control text-sm w-full";
+                
+                const btnRemove = document.createElement('button'); 
+                btnRemove.type = "button"; 
+                btnRemove.innerHTML = "&times;"; 
+                btnRemove.className = "text-red-500 font-bold px-3 text-2xl hover:text-red-400 focus:outline-none";
+                
+                await loadAuxs(newSel, selectedValue);
+                
+                div.append(newSel, btnRemove); 
+                containerExtras.appendChild(div);
+
+                // Inicializa o Select2 neste novo elemento específico
+                $(newSel).select2({
+                    placeholder: "Selecione o Auxiliar Extra...",
+                    width: '100%'
+                });
+
+                $(newSel).on('change', updateHidden); 
+                
+                btnRemove.addEventListener('click', () => { 
+                    $(newSel).select2('destroy'); 
+                    div.remove(); 
+                    updateHidden(); 
                 });
             }
+
+            // Evento do Botão Adicionar
+            if(btnAddExtra) {
+                btnAddExtra.addEventListener('click', async () => {
+                    await createExtraSelect();
+                });
+            }
+
             function updateHidden() {
                 const selects = containerExtras.querySelectorAll('select');
                 const vals = Array.from(selects).map(s => s.value).filter(v=>v);
                 hiddenList.value = vals.join(',');
             }
-            $('#id_colaborador').on('select2:select', async function (e) {
-                const val = e.params.data.id; if(val) { const r = await fetch(`/produtividade/api/get-colaborador-info/${val}/`); const d = await r.json(); document.getElementById('id_cargo_colaborador').value = d.cargo; }
-            });
 
-            // --- LÓGICA DE SALVAMENTO (Modal) ---
+            // ======================================================
+            // Recuperar dados ao Editar (Re-hidratar)
+            // ======================================================
+            // Verifica se já existem IDs salvos (modo edição) e recria os selects
+            const savedExtras = hiddenList.value;
+            if (savedExtras) {
+                const ids = savedExtras.split(',');
+                ids.forEach(async (id) => {
+                    if(id.trim()) {
+                        await createExtraSelect(id.trim());
+                    }
+                });
+                const auxCheck = document.getElementById('id_registrar_auxiliar');
+                const auxWrap = document.querySelector('.aux-wrapper');
+                if (auxCheck && auxCheck.checked) {
+                    auxWrap.classList.remove('hidden');
+                }
+            }
+
+            // ============================================
+            // DATE PICKER LÓGICA ATUALIZADA (FORMATO BR)
+            // ============================================
+            let activeDateInputId = null;
+            let pickerDate = new Date();
+            const pickerModal = document.getElementById('date-picker-modal');
+            const pickerGrid = document.getElementById('picker-grid');
+            const pickerLabel = document.getElementById('picker-month-label');
+            const pickerTitle = document.getElementById('picker-title');
+
+            const dormeCheck = document.getElementById('id_dorme_fora');
+            const feedbackText = document.getElementById('data-pernoite-feedback');
+            const feedbackDisplay = document.getElementById('data-pernoite-display');
+
+            // Abrir no click do campo principal
+            const mainDateInput = document.getElementById('id_data_apontamento');
+            if (mainDateInput) {
+                mainDateInput.addEventListener('click', () => openDateSelector('id_data_apontamento', 'Selecione a Data do Registro'));
+            }
+
+            if(dormeCheck) {
+                dormeCheck.addEventListener('change', function() {
+                    if (this.checked) {
+                        openDateSelector('id_data_dorme_fora', 'Selecione a Data do Pernoite');
+                    } else {
+                        document.getElementById('id_data_dorme_fora').value = '';
+                        feedbackText.classList.add('hidden');
+                    }
+                });
+            }
+
+            window.openDateSelector = function(inputId, title = "Selecione uma Data") {
+                activeDateInputId = inputId;
+                pickerTitle.textContent = title;
+                pickerModal.classList.remove('hidden');
+                
+                const currVal = document.getElementById(inputId).value;
+                if (currVal && currVal.includes('/')) {
+                    // Parse DD/MM/AAAA to Date object
+                    const parts = currVal.split('/');
+                    pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                } else {
+                    pickerDate = new Date();
+                }
+                renderPicker();
+            }
+
+            window.closeDateModal = function() { 
+                pickerModal.classList.add('hidden'); 
+                if (activeDateInputId === 'id_data_dorme_fora') {
+                    if (!document.getElementById('id_data_dorme_fora').value) {
+                        dormeCheck.checked = false;
+                    }
+                }
+                activeDateInputId = null;
+            }
+
+            window.changePickerMonth = function(d) { pickerDate.setMonth(pickerDate.getMonth() + d); renderPicker(); }
+
+            function renderPicker() {
+                pickerGrid.innerHTML = '';
+                const m = pickerDate.getMonth();
+                const y = pickerDate.getFullYear();
+                pickerLabel.textContent = pickerDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+                const firstDay = new Date(y, m, 1).getDay();
+                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                const today = new Date();
+
+                for(let i=0; i<firstDay; i++) { pickerGrid.appendChild(document.createElement('div')); }
+
+                for(let d=1; d<=daysInMonth; d++) {
+                    const el = document.createElement('div');
+                    el.className = "h-8 w-8 flex items-center justify-center rounded cursor-pointer hover:bg-slate-600 transition";
+                    el.textContent = d;
+                    const currentDate = new Date(y, m, d);
+                    
+                    if (currentDate.toDateString() === today.toDateString()) {
+                        el.classList.add('border', 'border-blue-500', 'text-blue-400', 'font-bold');
+                    }
+
+                    el.onclick = function() {
+                        // Format DD/MM/AAAA
+                        const formattedDate = `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`;
+                        
+                        if (activeDateInputId) {
+                            const input = document.getElementById(activeDateInputId);
+                            input.value = formattedDate;
+                            if (activeDateInputId === 'id_data_dorme_fora') {
+                                feedbackDisplay.textContent = formattedDate;
+                                feedbackText.classList.remove('hidden');
+                            }
+                        }
+                        pickerModal.classList.add('hidden');
+                        activeDateInputId = null;
+                    };
+                    pickerGrid.appendChild(el);
+                }
+            }
+
+            // --- LÓGICA DE SALVAMENTO ---
             const btnPreSave = document.getElementById('btn-pre-save');
             const modal = document.getElementById('confirm-modal');
             const modalTitle = document.getElementById('modal-title');
@@ -419,7 +552,7 @@
             window.closeConfirmModal = function() { modal.classList.add('hidden'); }
             function formatDate(dateStr) { if(!dateStr) return ""; const [y, m, d] = dateStr.split('-'); return `${d}-${m}-${y}`; }
             function getTangerinoIcon(code) {
-                if(code === 'RES') return '<svg class="h-5 w-5 text-blue-400 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg> Residência';
+                if(code === 'RES') return '<svg class="h-5 w-5 text-blue-400 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg> Residência';
                 if(code === 'CLI') return '<svg class="h-5 w-5 text-orange-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg> Cliente';
                 if(code === 'SED') return '<svg class="h-5 w-5 text-purple-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg> Sede ATGB';
                 if(code === 'OUT') return '<svg class="h-5 w-5 text-yellow-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg> Outros';
@@ -448,10 +581,19 @@
                     veiculo_novo_mod: document.getElementById('id_veiculo_manual_modelo').value,
                     veiculo_novo_pla: document.getElementById('id_veiculo_manual_placa').value,
                     usou_aux: document.getElementById('id_registrar_auxiliar').checked,
-                    aux_princ: $('#id_auxiliar_selecao').select2('data')[0]?.text
+                    aux_princ: $('#id_auxiliar_selecao').select2('data')[0]?.text,
+                    // Novos campos
+                    em_plantao: document.getElementById('id_em_plantao').checked,
+                    dorme_fora: document.getElementById('id_dorme_fora').checked,
+                    data_pernoite: document.getElementById('id_data_dorme_fora').value
                 };
 
-                // Lógica de erros simplificada para o contexto
+                let auxsList = [];
+                if(data.usou_aux) {
+                    if(data.aux_princ && data.aux_princ !== "Selecione...") auxsList.push(data.aux_princ);
+                    document.querySelectorAll('#extras-container select').forEach(s => { const txt = s.options[s.selectedIndex].text; if(txt && txt !== "Selecione...") auxsList.push(txt); });
+                }
+
                 let errors = [];
                 if(!data.colab_id) errors.push("Colaborador é obrigatório.");
                 if(!data.data_pt) errors.push("Data é obrigatória.");
@@ -464,13 +606,9 @@
                     if(!data.tangerino) errors.push("Início da jornada (Tangerino) é obrigatório.");
                 } else {
                     if(!data.centro_custo_id) errors.push("Centro de Custo / Justificativa é obrigatório.");
-                    
-                    // Validação visual: Se o campo de obra estiver visível no container externo, ele deve ser validado?
-                    // Como não temos acesso síncrono à flag 'permite_alocacao' aqui facilmente sem chamar API de novo,
-                    // confiamos na presença visual do valor. Se o usuário preencheu Obra E Centro de Custo, ok.
-                    
-                    // Nota: A validação rigorosa ocorre no backend (Clean do Form).
                 }
+
+                if(data.dorme_fora && !data.data_pernoite) errors.push("Selecione a data do Pernoite.");
 
                 if(errors.length > 0) {
                     modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10";
@@ -494,16 +632,19 @@
                         else contextInfo = `<span class="text-blue-300 font-bold">Cliente Geral:</span> ${data.cliente_txt}`;
                     } else {
                         contextInfo = `<span class="text-orange-300 font-bold">Centro Custo:</span> ${data.centro_custo_txt}`;
-                        // Se tiver obra preenchida mesmo sendo Externo
                         if(data.obra_id) contextInfo += `<br><span class="text-indigo-300 font-bold text-xs pl-2">↳ Alocado na Obra:</span> ${data.obra}`;
                     }
                     
-                    // ... (Restante da montagem do HTML do modal igual) ...
+                    let extrasInfo = "";
+                    if(data.em_plantao) extrasInfo += `<span class="bg-red-900/50 text-red-300 px-2 py-0.5 rounded text-xs border border-red-800">PLANTÃO</span> `;
+                    if(data.dorme_fora) extrasInfo += `<span class="bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded text-xs border border-purple-800">PERNOITE (${data.data_pernoite})</span>`;
+
                     let html = `<div class="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-2 text-sm">
                         <p><span class="text-gray-500">Colaborador:</span> <span class="text-white font-bold text-lg block">${data.colab}</span></p>
-                        <p><span class="text-gray-500">Data:</span> <span class="text-white font-bold">${formatDate(data.data_pt)}</span></p>
+                        <p><span class="text-gray-500">Data:</span> <span class="text-white font-bold">${data.data_pt}</span></p>
                         <div class="py-2 border-y border-slate-700 my-2 space-y-1"><p>${contextInfo}</p></div>
                         <p><span class="text-gray-500">Horário:</span> <span class="text-emerald-400 font-mono font-bold text-base">${data.inicio}</span> até <span class="text-red-400 font-mono font-bold text-base">${data.fim}</span></p>
+                        <div class="mt-2">${extrasInfo}</div>
                         </div>`;
                     modalContent.innerHTML = html;
                     btnConfirmSubmit.classList.remove('hidden');

@@ -34,6 +34,15 @@
             
             <div class="flex items-center gap-4 justify-end w-full xl:w-auto mt-4 xl:mt-0">
                 
+                {% if is_owner %}
+                <button type="button" onclick="openExportModal()" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 transition flex items-center gap-2 shadow-lg shadow-emerald-900/20 whitespace-nowrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                        <path fill-rule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zm4.75 6.75a.75.75 0 011.5 0v2.546l.943-1.048a.75.75 0 011.114 1.004l-2.25 2.5a.75.75 0 01-1.114 0l-2.25-2.5a.75.75 0 111.114-1.004l.943 1.048V8.75z" clip-rule="evenodd" />
+                    </svg>
+                    Exportar Excel
+                </button>
+                {% endif %}
+
                 <button type="button" onclick="openCalendar()" class="rounded-md bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-500 transition flex items-center gap-2 shadow-lg shadow-teal-900/20 whitespace-nowrap">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                         <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd" />
@@ -88,10 +97,10 @@
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Início</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Fim</th>
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Obs</th>
+                        <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Extras</th> 
                         <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Info</th>
-                        {% if is_owner %}
-                            <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Ações</th>
-                        {% endif %}
+                        <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Ações</th>
+                        <th class="py-3 px-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
@@ -110,7 +119,8 @@
                         </td>
                         <td class="py-4 px-3 text-sm text-center font-mono text-emerald-400">{{ item.veiculo }}</td>
                         <td class="py-4 px-3 text-center">
-                            {% if item.tangerino == 'RES' %}<div class="flex justify-center" title="Residência"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg></div>
+                            {% if item.tangerino == 'RES' %}
+                                <div class="flex justify-center" title="Residência"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.707-1.707l7-7z" clip-rule="evenodd" /></svg></div>
                             {% elif item.tangerino == 'CLI' %}<div class="flex justify-center" title="Cliente"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /><path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.435-.608-7.92-1.708z" /></svg></div>
                             {% elif item.tangerino == 'SED' %}<div class="flex justify-center" title="Sede ATGB"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg></div>
                             {% elif item.tangerino == 'OUT' %}<div class="flex flex-col items-center" title="{{ item.tangerino_obs }}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>{% if item.tangerino_obs %}<span class="text-[10px] text-gray-400 max-w-[80px] truncate">{{ item.tangerino_obs }}</span>{% endif %}</div>
@@ -125,24 +135,92 @@
                                 </button>
                             {% else %}<span class="text-gray-600 text-xs">-</span>{% endif %}
                         </td>
+                        
+                        <td class="py-4 px-3 text-center">
+                            <div class="flex flex-col items-center justify-center gap-1">
+                                {% if item.dorme_fora %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-indigo-400" title="Dorme Fora / Diária"><path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd" /></svg>
+                                {% endif %}
+                                {% if item.em_plantao %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-red-400" title="Plantão"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" /></svg>
+                                {% endif %}
+                                {% if not item.dorme_fora and not item.em_plantao %}<span class="text-gray-600 text-xs">-</span>{% endif %}
+                            </div>
+                        </td>
+
                         <td class="py-4 px-3 text-center">
                             <button type="button" onclick="openModal('Detalhes do Registro', `👤 Enviado por: {{ item.registrado_por_str|escapejs }}\n📅 Data: {{ item.registrado_em|date:'d/m/Y' }}\n⏰ Hora: {{ item.registrado_em|date:'H:i' }}`)" class="text-cyan-600 hover:text-cyan-400 transition-colors" title="Ver Detalhes">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" /></svg>
                             </button>
                         </td>
-                        {% if is_owner %}
+
                         <td class="py-4 px-3 text-center">
-                            {% if not item.is_auxiliar %}
-                                <div class="flex items-center justify-center gap-3">
-                                    <a href="{% url 'editar_apontamento' item.id %}" class="text-indigo-400 hover:text-indigo-300 transition-colors" title="Editar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32l8.4-8.4z" /><path d="M5.25 5.25a3 3 0 00-3 3v10.5a3 3 0 003 3h10.5a3 3 0 003-3V13.5a.75.75 0 00-1.5 0v5.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V8.25a1.5 1.5 0 011.5-1.5h5.25a.75.75 0 000-1.5H5.25z" /></svg></a>
-                                    <a href="{% url 'excluir_apontamento' item.id %}" class="text-red-500 hover:text-red-400 transition-colors" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este registro permanentemente?')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.565-.061a48.854 48.854 0 01-7.83-.51 48.853 48.853 0 01-7.83.51l-.565.061a.75.75 0 11-.49-1.478 48.816 48.816 0 013.878-.512V4.478C7.49 3.31 8.358 2.25 9.593 2.25h4.814c1.236 0 2.103 1.06 2.103 2.228zM15 9.75a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6z" clip-rule="evenodd" /></svg></a>
+                            <div class="flex items-center justify-center gap-3">
+                                {% if is_owner %}
+                                    {% if not item.is_auxiliar %}
+                                        <a href="{% url 'editar_apontamento' item.id %}" class="text-indigo-400 hover:text-indigo-300 transition-colors" title="Editar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32l8.4-8.4z" /><path d="M5.25 5.25a3 3 0 00-3 3v10.5a3 3 0 003 3h10.5a3 3 0 003-3V13.5a.75.75 0 00-1.5 0v5.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V8.25a1.5 1.5 0 011.5-1.5h5.25a.75.75 0 000-1.5H5.25z" /></svg></a>
+                                        <a href="{% url 'excluir_apontamento' item.id %}" class="text-red-500 hover:text-red-400 transition-colors" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este registro permanentemente?')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.565-.061a48.854 48.854 0 01-7.83-.51 48.853 48.853 0 01-7.83.51l-.565.061a.75.75 0 11-.49-1.478 48.816 48.816 0 013.878-.512V4.478C7.49 3.31 8.358 2.25 9.593 2.25h4.814c1.236 0 2.103 1.06 2.103 2.228zM15 9.75a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 0a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6z" clip-rule="evenodd" /></svg></a>
+                                    {% endif %}
+                                {% else %}
+                                    {% if not item.status_ajuste %}
+                                        <button onclick="abrirModalAjuste('{{ item.id }}')" class="text-gray-500 hover:text-yellow-500 transition-colors" title="Solicitar Ajuste / Informar Erro">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <td class="py-4 px-3 text-center">
+                            {% if item.status_ajuste == 'APROVADO' %}
+                                <div class="group relative inline-block">
+                                    <span class="text-emerald-400 text-[10px] font-bold border border-emerald-500/50 px-2 py-1 rounded cursor-help flex items-center justify-center gap-1 shadow-lg shadow-emerald-900/20 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg>
+                                        APROVADO
+                                    </span>
+                                    <div class="absolute top-full right-0 mt-2 w-64 p-3 bg-white text-gray-900 text-xs rounded shadow-xl hidden group-hover:block z-[9999] border-2 border-emerald-500 text-left">
+                                        <strong class="text-emerald-600 block mb-1">Histórico:</strong>
+                                        <p class="text-gray-600 italic">"{{ item.motivo_ajuste }}"</p>
+                                        <div class="mt-2 pt-2 border-t border-gray-200 text-[10px] text-gray-400">Solicitação tratada.</div>
+                                    </div>
                                 </div>
+
+                            {% elif item.status_ajuste == 'PENDENTE' %}
+                                {% if is_owner %}
+                                    <div class="group relative inline-block">
+                                        <button class="bg-red-600 hover:bg-red-500 text-white text-[10px] px-2 py-1 rounded font-bold animate-pulse flex items-center justify-center gap-1 whitespace-nowrap">
+                                            ⚠ AJUSTE
+                                        </button>
+                                        <div class="absolute top-full right-0 mt-2 w-64 p-3 bg-white text-gray-900 text-xs rounded shadow-xl hidden group-hover:block z-[9999] border-2 border-red-500 text-left">
+                                            <strong class="text-red-600 block mb-1">Solicitação:</strong>
+                                            <p class="mb-3 text-gray-700">{{ item.motivo_ajuste }}</p>
+                                            <form action="{% url 'aprovar_ajuste' item.id %}" method="POST" class="border-t border-gray-200 pt-2 flex justify-end">
+                                                {% csrf_token %}
+                                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors font-bold text-[10px]">
+                                                    MARCAR COMO APROVADO
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="group relative inline-block">
+                                        <span class="text-yellow-500 text-[10px] font-medium border border-yellow-500/50 px-2 py-1 rounded cursor-help whitespace-nowrap">
+                                            EM ANÁLISE
+                                        </span>
+                                        <div class="absolute top-full right-0 mt-2 w-48 p-2 bg-slate-800 text-gray-200 text-xs rounded shadow-lg hidden group-hover:block z-[9999] border border-slate-600 text-center">
+                                            Aguardando verificação do gestor.
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-700 text-xs">-</span>
                             {% endif %}
                         </td>
-                        {% endif %}
                     </tr>
                     {% empty %}
-                    <tr><td colspan="{% if is_owner %}10{% else %}9{% endif %}" class="text-center py-12 text-gray-500">Nenhum registro encontrado.</td></tr>
+                    <tr><td colspan="12" class="text-center py-12 text-gray-500">Nenhum registro encontrado.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -177,6 +255,41 @@
         </div>
     </div>
 
+    <div id="export-modal" class="relative z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-xl bg-slate-800 border border-slate-700 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                    <div class="bg-slate-900 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-emerald-500">
+                                <path fill-rule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zm4.75 6.75a.75.75 0 011.5 0v2.546l.943-1.048a.75.75 0 011.114 1.004l-2.25 2.5a.75.75 0 01-1.114 0l-2.25-2.5a.75.75 0 111.114-1.004l.943 1.048V8.75z" clip-rule="evenodd" />
+                            </svg>
+                            Exportar Relatório Excel
+                        </h3>
+                        <button onclick="document.getElementById('export-modal').classList.add('hidden')" class="text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-sm text-gray-400">Selecione o período para gerar o relatório consolidado de custos e horas.</p>
+                        <form id="export-form" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Data Início</label>
+                                <input type="date" id="export-start" class="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Data Fim</label>
+                                <input type="date" id="export-end" class="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white text-sm" required>
+                            </div>
+                            <button type="button" onclick="submitExport()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded mt-4 transition-colors">
+                                Baixar Arquivo .xlsx
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="calendar-modal" class="relative z-50 hidden" role="dialog" aria-modal="true">
         <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
@@ -204,13 +317,7 @@
 
                     <div class="px-6 pb-6">
                         <div class="grid grid-cols-7 mb-2 text-center">
-                            <div class="text-xs text-gray-500 font-bold">D</div>
-                            <div class="text-xs text-gray-500 font-bold">S</div>
-                            <div class="text-xs text-gray-500 font-bold">T</div>
-                            <div class="text-xs text-gray-500 font-bold">Q</div>
-                            <div class="text-xs text-gray-500 font-bold">Q</div>
-                            <div class="text-xs text-gray-500 font-bold">S</div>
-                            <div class="text-xs text-gray-500 font-bold">S</div>
+                            <div class="text-xs text-gray-500 font-bold">D</div><div class="text-xs text-gray-500 font-bold">S</div><div class="text-xs text-gray-500 font-bold">T</div><div class="text-xs text-gray-500 font-bold">Q</div><div class="text-xs text-gray-500 font-bold">Q</div><div class="text-xs text-gray-500 font-bold">S</div><div class="text-xs text-gray-500 font-bold">S</div>
                         </div>
                         
                         <div id="calendar-grid" class="calendar-grid">
@@ -220,6 +327,10 @@
                         <div class="mt-4 pt-4 border-t border-slate-700 flex gap-4 justify-center text-xs">
                             <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500"></div><span class="text-gray-400">Preenchido</span></div>
                             <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500"></div><span class="text-gray-400">Pendente</span></div>
+                            <div class="flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-indigo-400" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
+                                <span class="text-gray-400">Dorme Fora</span>
+                            </div>
                         </div>
                         
                         <div id="owner-msg" class="hidden mt-2 text-center text-xs text-indigo-400 bg-indigo-900/20 p-2 rounded">
@@ -228,6 +339,23 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="modalAjuste" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold text-white mb-4">Solicitar Ajuste</h3>
+            <p class="text-sm text-gray-300 mb-4">Descreva o que está errado neste apontamento (horário, obra, veículo, etc).</p>
+            
+            <form id="formAjuste" method="POST" action="">
+                {% csrf_token %}
+                <textarea name="motivo_texto" rows="4" class="w-full bg-slate-700 text-white rounded border border-slate-600 p-2 focus:border-emerald-500 focus:outline-none" required placeholder="Ex: Esqueci de adicionar o carro..."></textarea>
+                
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="fecharModal()" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-500 font-bold">Enviar Solicitação</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -246,6 +374,27 @@
         modal.addEventListener('click', function(e) {
             if (e.target === modal.querySelector('.fixed.inset-0.bg-gray-900\\/75')) { closeModal(); }
         });
+
+        // --- Scripts de Exportação ---
+        function openExportModal() {
+            const date = new Date();
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+            
+            document.getElementById('export-start').value = firstDay;
+            document.getElementById('export-end').value = lastDay;
+            document.getElementById('export-modal').classList.remove('hidden');
+        }
+
+        function submitExport() {
+            const start = document.getElementById('export-start').value;
+            const end = document.getElementById('export-end').value;
+            if(!start || !end) { alert("Selecione as datas."); return; }
+            
+            // Redireciona para download
+            window.location.href = `{% url 'exportar_relatorio_excel' %}?start_date=${start}&end_date=${end}`;
+            document.getElementById('export-modal').classList.add('hidden');
+        }
 
         // --- Scripts do Calendário ---
         let calDate = new Date();
@@ -274,7 +423,7 @@
             const monthName = calDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
             calLabel.textContent = monthName;
 
-            const m = calDate.getMonth() + 1; // JS 0-11, Python 1-12
+            const m = calDate.getMonth() + 1;
             const y = calDate.getFullYear();
 
             try {
@@ -297,55 +446,55 @@
 
         function renderCalendar(daysData, year, month) {
             calGrid.innerHTML = '';
-            
-            // Descobre dia da semana do dia 1 (0=Dom, 1=Seg...)
             const firstDayIndex = new Date(year, month - 1, 1).getDay();
 
-            // Células vazias antes do dia 1
-            for (let i = 0; i < firstDayIndex; i++) {
-                const empty = document.createElement('div');
-                calGrid.appendChild(empty);
-            }
+            for (let i = 0; i < firstDayIndex; i++) { calGrid.appendChild(document.createElement('div')); }
 
-            // Renderiza dias
             daysData.forEach(d => {
                 const el = document.createElement('div');
-                // Estilos base + hover + cursor pointer para clique
-                el.className = "h-10 w-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all cursor-pointer hover:scale-110 shadow-sm";
-                
+                el.className = "relative h-10 w-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all cursor-pointer hover:scale-110 shadow-sm";
                 el.textContent = d.day;
 
-                // Evento de Clique: Redireciona para o filtro daquele dia
+                // Lógica de Ícone de Lua
+                if (d.has_pernoite) {
+                    const moonIcon = document.createElement('div');
+                    moonIcon.className = 'absolute top-0.5 right-0.5';
+                    moonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-indigo-400" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>`;
+                    el.appendChild(moonIcon);
+                }
+
                 if (d.status !== 'future') {
-                    el.onclick = function() {
-                        // Formata a URL de filtro para este dia específico
-                        window.location.href = `?start_date=${d.date}&end_date=${d.date}`;
-                    };
+                    el.onclick = function() { window.location.href = `?start_date=${d.date}&end_date=${d.date}`; };
                 } else {
-                    // Dias futuros não clicáveis
                     el.classList.remove('cursor-pointer', 'hover:scale-110', 'shadow-sm');
                     el.classList.add('cursor-default', 'opacity-50');
                 }
 
                 if (d.status === 'filled') {
-                    // Verde (Ok)
                     el.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50', 'hover:bg-emerald-500/30');
                 } else if (d.status === 'missing') {
-                    // Vermelho (Pendente)
                     el.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50', 'hover:bg-red-500/30');
                 } else {
-                    // Futuro (Cinza)
                     el.classList.add('bg-slate-800', 'text-gray-600', 'border-slate-700');
                 }
-                
                 calGrid.appendChild(el);
             });
         }
+        calendarModal.addEventListener('click', function(e) { if (e.target === calendarModal.querySelector('.fixed.inset-0.bg-gray-900\\/80')) { closeCalendar(); } });
 
-        // Fechar calendário ao clicar fora
-        calendarModal.addEventListener('click', function(e) {
-            if (e.target === calendarModal.querySelector('.fixed.inset-0.bg-gray-900\\/80')) { closeCalendar(); }
-        });
+        // --- Scripts do Modal de Ajuste ---
+        function abrirModalAjuste(idApontamento) {
+            // Define a URL de action do form dinamicamente
+            const form = document.getElementById('formAjuste');
+            form.action = `/produtividade/apontamento/${idApontamento}/solicitar-ajuste/`;
+            
+            // Mostra o modal
+            document.getElementById('modalAjuste').classList.remove('hidden');
+        }
+
+        function fecharModal() {
+            document.getElementById('modalAjuste').classList.add('hidden');
+        }
     </script>
 </body>
 </html>

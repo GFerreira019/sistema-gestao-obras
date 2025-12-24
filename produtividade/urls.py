@@ -2,32 +2,48 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Redireciona para o novo apontamento
+    # ==========================================================================
+    # NAVEGAÇÃO BÁSICA
+    # ==========================================================================
     path('', views.home_redirect_view, name='home'),
-
-    # Rota para o Menu
     path('menu/', views.home_view, name='home_menu'),
+    path('configuracoes/', views.configuracoes_view, name='configuracoes'),
 
-    # Formulário Principal
+    # ==========================================================================
+    # CORE: APONTAMENTOS (CRUD)
+    # ==========================================================================
+    # Formulário de Criação
     path('apontamento/novo/', views.apontamento_atividade_view, name='novo_apontamento'),
+    
+    # Tela de feedback de sucesso
+    path('apontamento/sucesso/', views.apontamento_sucesso_view, name='apontamento_sucesso'),
 
-    # Funcionalidades de Gestão (Owner/Admin)
+    # Funcionalidades de Edição e Exclusão (Admin/Gestor)
     path('apontamento/editar/<int:pk>/', views.editar_apontamento_view, name='editar_apontamento'),
     path('apontamento/excluir/<int:pk>/', views.excluir_apontamento_view, name='excluir_apontamento'),
 
-    # Tela de Sucesso
-    path('apontamento/sucesso/', views.apontamento_sucesso_view, name='apontamento_sucesso'),
-    
-    # Histórico
+    # ==========================================================================
+    # HISTÓRICO E FLUXOS DE APROVAÇÃO
+    # ==========================================================================
     path('historico/', views.historico_apontamentos_view, name='historico_apontamentos'),
-    
-    # Página Principal de Configurações
-    path('configuracoes/', views.configuracoes_view, name='configuracoes'),
 
+    # Solicitar Ajuste (Usuário/Colaborador pede correção em registro passado)
+    path('apontamento/<int:pk>/solicitar-ajuste/', views.solicitar_ajuste_view, name='solicitar_ajuste'),
+
+    # Aprovar Ajuste (Gestor aceita a correção)
+    path('apontamento/<int:pk>/aprovar-ajuste/', views.aprovar_ajuste_view, name='aprovar_ajuste'),
+
+    # ==========================================================================
     # APIs AJAX
+    # ==========================================================================
     path('api/get-projeto-info/<int:projeto_id>/', views.get_projeto_info_ajax, name='get_projeto_info'),
     path('api/get-colaborador-info/<int:colaborador_id>/', views.get_colaborador_info_ajax, name='get_colaborador_info'),
     path('api/get-auxiliares/', views.get_auxiliares_ajax, name='get_auxiliares'), 
     path('api/get-centro-custo-info/<int:cc_id>/', views.get_centro_custo_info_ajax, name='get_centro_custo_info_ajax'),
     path('api/get-calendar-status/', views.get_calendar_status_ajax, name='get_calendar_status_ajax'),
+
+    # ==========================================================================
+    # RELATÓRIOS E EXPORTAÇÃO
+    # ==========================================================================
+    path('exportar/excel/', views.exportar_relatorio_excel, name='exportar_relatorio_excel'),
 ]

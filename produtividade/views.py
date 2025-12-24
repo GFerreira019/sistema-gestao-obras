@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404, HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.contrib import messages
@@ -6,13 +6,15 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 import calendar
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+
+# Imports locais
 from .forms import ApontamentoForm
 from .models import Apontamento, Projeto, Colaborador, Setor, Veiculo, CodigoCliente, CentroCusto
-from django.contrib.auth.models import Group
 
 # ==============================================================================
-# LÓGICA DE CONTROLE DE ACESSO (RBAC)
-# Helpers para validação de permissões e hierarquia de usuários
+# 1. LÓGICA DE CONTROLE DE ACESSO (RBAC)
 # ==============================================================================
 
 def is_user_in_group(user, group_name):
@@ -20,30 +22,49 @@ def is_user_in_group(user, group_name):
     return user.groups.filter(name=group_name).exists()
 
 def is_owner(user):
-    """Verifica se o usuário possui permissão de Superusuário (Owner)."""
+    """Verifica se é superusuário (Auditores/TI)."""
     return user.is_superuser
 
 def is_admin_or_gestor(user):
-    """Verifica se o usuário possui perfil Administrativo ou Gestor."""
+    """Verifica permissões de gestão."""
     return is_user_in_group(user, 'GESTOR') or is_user_in_group(user, 'ADMINISTRATIVO')
 
 def is_operacional(user):
-    """Identifica se o usuário é do nível Operacional (Restrito)."""
+    """Verifica se é usuário padrão (Colaborador)."""
     return user.is_authenticated and not is_owner(user) and not is_admin_or_gestor(user)
 
 @login_required
 def home_redirect_view(request):
-    """Redireciona a raiz do sistema para o menu principal."""
+    """Redireciona para a home correta."""
     return redirect('home_menu')
 
+@login_required
+def home_view(request):
+    """Renderiza o menu principal."""
+    return render(request, 'produtividade/home.html')
+
+@login_required
+def configuracoes_view(request):
+    """Tela de configurações do usuário."""
+    context = {
+        'titulo': 'Configurações do Usuário',
+        'change_password_url': '/accounts/password_change/',
+    }
+    return render(request, 'produtividade/configuracoes.html', context)
+
 # ==============================================================================
-# VIEWS DE OPERAÇÃO (CRIAR, EDITAR, EXCLUIR)
-# Gerenciam o fluxo de persistência de dados do Timesheet
+# 2. VIEWS DE OPERAÇÃO (CRIAR E LISTAR)
 # ==============================================================================
 
 @login_required
 def apontamento_atividade_view(request):
-    """View para registro de novos apontamentos diários."""
+    """
+    View principal para CRIAÇÃO de novos apontamentos.
+    Gerencia:
+    - Salvamento do Form principal.
+    - Lógica de Veículo (Banco ou Manual).
+    - Lógica de Auxiliares (Principal + Extras).
+    """
     user_kwargs = {'user': request.user}
     
     if request.method == 'POST':
@@ -52,22 +73,22 @@ def apontamento_atividade_view(request):
             apontamento = form.save(commit=False)
             apontamento.registrado_por = request.user
             
-            # --- Tratamento de Auxiliares ---
+            # 1. Lógica de Auxiliar Principal
             if form.cleaned_data.get('registrar_auxiliar'):
                 apontamento.auxiliar = form.cleaned_data.get('auxiliar_selecao')
-                apontamento.auxiliares_extras_ids = form.cleaned_data.get('auxiliares_extras_list')
             else:
                 apontamento.auxiliar = None
-                apontamento.auxiliares_extras_ids = None
 
-            # --- Tratamento de Veículo (Lógica Híbrida) ---
+            # 2. Lógica de Veículo (Híbrida)
             if form.cleaned_data.get('registrar_veiculo'):
                 selection = form.cleaned_data.get('veiculo_selecao')
                 if selection == 'OUTRO':
+                    # Veículo Manual
                     apontamento.veiculo = None
                     apontamento.veiculo_manual_modelo = form.cleaned_data.get('veiculo_manual_modelo')
                     apontamento.veiculo_manual_placa = form.cleaned_data.get('veiculo_manual_placa')
                 else:
+                    # Veículo do Banco
                     try:
                         apontamento.veiculo = Veiculo.objects.get(pk=selection)
                         apontamento.veiculo_manual_modelo = None
@@ -75,18 +96,30 @@ def apontamento_atividade_view(request):
                     except Veiculo.DoesNotExist:
                         apontamento.veiculo = None
             else:
+                # Sem veículo
                 apontamento.veiculo = None
                 apontamento.veiculo_manual_modelo = None
                 apontamento.veiculo_manual_placa = None
 
-            apontamento.save()
+            apontamento.save() 
+
+            # 3. Salva os Extras no Many-To-Many (Necessário após o save do objeto)
+            if form.cleaned_data.get('registrar_auxiliar'):
+                ids_string = form.cleaned_data.get('auxiliares_extras_list')
+                if ids_string:
+                    ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
+                    apontamento.auxiliares_extras.set(ids_list)
+                else:
+                    apontamento.auxiliares_extras.clear()
+            else:
+                apontamento.auxiliares_extras.clear()
+
             messages.success(request, f"Registro de {apontamento.colaborador} salvo com sucesso!")
             return redirect('novo_apontamento')
     else:
-        # Preenchimento automático de data e hora para facilitar UX
         now_local = timezone.localtime(timezone.now())
         initial_data = {
-            'data_apontamento': now_local.strftime('%Y-%m-%d'),
+            'data_apontamento': now_local.strftime('%d/%m/%Y'),
             'hora_inicio': now_local.strftime('%H:%M'),
         }
         form = ApontamentoForm(initial=initial_data, **user_kwargs)
@@ -101,9 +134,189 @@ def apontamento_atividade_view(request):
 
 
 @login_required
+def historico_apontamentos_view(request):
+    """
+    View de Listagem com filtros de data e permissões de visualização.
+    """
+    user = request.user
+    
+    # Eager Loading para evitar N+1 queries
+    queryset = Apontamento.objects.select_related(
+        'projeto', 'codigo_cliente', 'colaborador', 
+        'veiculo', 'centro_custo', 'registrado_por'
+    ).prefetch_related('auxiliares_extras').all()
+
+    # --- Filtros de Data ---
+    period = request.GET.get('period')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=6)
+    current_period = '7'
+
+    if period:
+        try:
+            days = int(period)
+            start_date = end_date - timedelta(days=days - 1)
+            current_period = period
+            start_date_str = None
+            end_date_str = None
+        except ValueError:
+            pass
+    elif start_date_str and end_date_str:
+        try:
+            start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            current_period = 'custom'
+        except ValueError:
+            pass
+
+    queryset = queryset.filter(data_apontamento__gte=start_date, data_apontamento__lte=end_date)
+
+    # --- Regras de Visualização (Quem vê o quê) ---
+    if is_owner(user):
+        pass # Owner vê tudo
+    else:
+        try:
+            meu_perfil_colaborador = Colaborador.objects.get(user_account=user)
+            # Vê registros feitos POR MIM ou ONDE EU SOU o colaborador
+            queryset = queryset.filter(
+                Q(registrado_por=user) | Q(colaborador=meu_perfil_colaborador)
+            )
+        except Colaborador.DoesNotExist:
+            queryset = queryset.filter(registrado_por=user)
+        
+        # Limita histórico para não-admins (segurança/performance)
+        limit_date = timezone.now().date() - timedelta(days=30)
+        if start_date < limit_date:
+            start_date = limit_date
+        queryset = queryset.filter(data_apontamento__gte=limit_date)
+
+    # Processamento para exibição
+    apontamentos_db = queryset.order_by('-data_apontamento', '-id')
+    historico_lista = []
+
+    for item in apontamentos_db:
+        # Formatação inteligente do Local
+        if item.local_execucao == 'INT':
+            if item.projeto:
+                p_cod = item.projeto.codigo if item.projeto.codigo else ""
+                local_ref = f"{p_cod} - {item.projeto.nome}" if p_cod else f"{item.projeto.nome}"
+            elif item.codigo_cliente:
+                local_ref = f"{item.codigo_cliente.codigo} - {item.codigo_cliente.nome}"
+            else:
+                local_ref = "Obra/Cliente não informado"
+        else:
+            local_ref = item.centro_custo.nome if item.centro_custo else "Externo"
+            if item.projeto:
+                local_ref += f" (Obra: {item.projeto.codigo})"
+            elif item.codigo_cliente:
+                local_ref += f" (CLIENTE: {item.codigo_cliente.codigo})"
+
+        # Formatação inteligente do Veículo
+        if item.veiculo: 
+            veiculo_display = str(item.veiculo)
+        elif item.veiculo_manual_placa: 
+            veiculo_display = f"{item.veiculo_manual_modelo} - {item.veiculo_manual_placa} (Externo)"
+        else: 
+            veiculo_display = ""
+
+        reg_user = item.registrado_por
+        user_display = f"{reg_user.first_name} {reg_user.last_name}" if reg_user and reg_user.first_name else (reg_user.username if reg_user else "Sistema")
+
+        base_dict = {
+            'id': item.id,
+            'data': item.data_apontamento,
+            'local_ref': local_ref,
+            'inicio': item.hora_inicio,
+            'termino': item.hora_termino,
+            'local_tipo': item.get_local_execucao_display(),
+            'obs': item.ocorrencias,
+            'tangerino': item.local_inicio_jornada,
+            'tangerino_obs': item.local_inicio_jornada_outros,
+            'registrado_em': item.data_registro,
+            'registrado_por_str': user_display,
+            'em_plantao': item.em_plantao,
+            'dorme_fora': item.dorme_fora,
+            'motivo_ajuste': item.motivo_ajuste,
+            'status_ajuste': item.status_ajuste, 
+        }
+
+        # Adiciona linha principal (Colaborador)
+        row_main = base_dict.copy()
+        row_main.update({'nome': item.colaborador.nome_completo, 'cargo': item.colaborador.cargo, 'veiculo': veiculo_display, 'is_auxiliar': False})
+        historico_lista.append(row_main)
+
+        # Adiciona linhas de Auxiliares (se houver) para visualização expandida
+        auxiliares_a_exibir = []
+        if item.auxiliar: auxiliares_a_exibir.append(item.auxiliar)
+        
+        extras = item.auxiliares_extras.all()
+        auxiliares_a_exibir.extend(extras)
+
+        for aux in auxiliares_a_exibir:
+            row_aux = base_dict.copy()
+            row_aux.update({'nome': aux.nome_completo, 'cargo': aux.cargo, 'veiculo': "", 'is_auxiliar': True})
+            historico_lista.append(row_aux)
+
+    context = {
+        'titulo': "Histórico",
+        'apontamentos_lista': historico_lista,
+        'show_user_column': is_owner(user), 
+        'is_owner': is_owner(user),
+        'current_period': current_period,
+        'start_date_val': start_date.strftime('%Y-%m-%d'),
+        'end_date_val': end_date.strftime('%Y-%m-%d'),
+    }
+    return render(request, 'produtividade/historico_apontamentos.html', context)
+
+
+# ==============================================================================
+# 3. GESTÃO DE AJUSTES E EDIÇÃO (ADMINISTRATIVO)
+# ==============================================================================
+
+@login_required
+def solicitar_ajuste_view(request, pk):
+    """
+    Permite que o usuário ou colaborador solicite um ajuste em um registro fechado.
+    """
+    apontamento = get_object_or_404(Apontamento, pk=pk)
+    
+    # Segurança: Só permite se o usuário for o dono do registro ou o colaborador vinculado
+    is_autor = apontamento.registrado_por == request.user
+    is_colaborador = False
+    try:
+        colab = Colaborador.objects.get(user_account=request.user)
+        if apontamento.colaborador == colab:
+            is_colaborador = True
+    except Colaborador.DoesNotExist:
+        pass
+
+    if not (is_autor or is_colaborador or request.user.is_superuser):
+         messages.error(request, "Você não tem permissão para solicitar ajuste neste registro.")
+         return redirect('historico_apontamentos')
+
+    if request.method == 'POST':
+        motivo = request.POST.get('motivo_texto')
+        if motivo:
+            apontamento.motivo_ajuste = motivo
+            apontamento.status_ajuste = 'PENDENTE'
+            apontamento.save()
+            messages.success(request, "Solicitação de ajuste enviada para a administração.")
+        else:
+            messages.warning(request, "É necessário descrever o motivo do ajuste.")
+            
+    return redirect('historico_apontamentos')
+
+
+@login_required
 @user_passes_test(is_owner)
 def editar_apontamento_view(request, pk):
-    """View para edição de registros existentes (Restrito a Owners)."""
+    """
+    Edição completa do apontamento (Acesso Admin).
+    Se o apontamento tinha uma solicitação de ajuste pendente, ela é automaticamente aprovada ao salvar.
+    """
     apontamento = get_object_or_404(Apontamento, pk=pk)
     user_kwargs = {'user': request.user, 'instance': apontamento}
 
@@ -111,21 +324,73 @@ def editar_apontamento_view(request, pk):
         form = ApontamentoForm(request.POST, **user_kwargs)
         if form.is_valid():
             obj = form.save(commit=False)
-            # Limpeza manual de auxiliares caso o checkbox seja desmarcado
+            
+            # 1. Limpeza de Auxiliares
             if not form.cleaned_data.get('registrar_auxiliar'):
                 obj.auxiliar = None
-                obj.auxiliares_extras_ids = None
+
+            # 2. Tratamento de Veículo
+            if form.cleaned_data.get('registrar_veiculo'):
+                selection = form.cleaned_data.get('veiculo_selecao')
+                if selection == 'OUTRO':
+                    obj.veiculo = None
+                    obj.veiculo_manual_modelo = form.cleaned_data.get('veiculo_manual_modelo')
+                    obj.veiculo_manual_placa = form.cleaned_data.get('veiculo_manual_placa')
+                else:
+                    try:
+                        obj.veiculo = Veiculo.objects.get(pk=selection)
+                        obj.veiculo_manual_modelo = None
+                        obj.veiculo_manual_placa = None
+                    except Veiculo.DoesNotExist:
+                        obj.veiculo = None
+            else:
+                obj.veiculo = None
+                obj.veiculo_manual_modelo = None
+                obj.veiculo_manual_placa = None
+
+            # 3. Aprovação Automática de Ajuste (se houver pendência)
+            if obj.status_ajuste == 'PENDENTE':
+                obj.status_ajuste = 'APROVADO'
+            
             obj.save()
+
+            # 4. Atualização do M2M Auxiliares
+            if form.cleaned_data.get('registrar_auxiliar'):
+                ids_string = form.cleaned_data.get('auxiliares_extras_list')
+                if ids_string:
+                    ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
+                    obj.auxiliares_extras.set(ids_list)
+                else:
+                    obj.auxiliares_extras.clear()
+            else:
+                obj.auxiliares_extras.clear()
+
             messages.success(request, "Apontamento atualizado com sucesso!")
             return redirect('historico_apontamentos')
     else:
-        # Recupera estados de checkbox para exibição correta no form de edição
+        # Preenchimento inicial do formulário para Edição
         initial_data = {}
-        if apontamento.veiculo or apontamento.veiculo_manual_placa:
+        if apontamento.data_apontamento:
+            initial_data['data_apontamento'] = apontamento.data_apontamento.strftime('%d/%m/%Y')
+        if apontamento.data_dorme_fora:
+            initial_data['data_dorme_fora'] = apontamento.data_dorme_fora.strftime('%d/%m/%Y')
+
+        if apontamento.veiculo:
             initial_data['registrar_veiculo'] = True
+            initial_data['veiculo_selecao'] = apontamento.veiculo.id
+        elif apontamento.veiculo_manual_placa:
+            initial_data['registrar_veiculo'] = True
+            initial_data['veiculo_selecao'] = 'OUTRO'
+            initial_data['veiculo_manual_modelo'] = apontamento.veiculo_manual_modelo
+            initial_data['veiculo_manual_placa'] = apontamento.veiculo_manual_placa
+
         if apontamento.auxiliar:
             initial_data['registrar_auxiliar'] = True
-            initial_data['auxiliares_extras_list'] = apontamento.auxiliares_extras_ids
+            initial_data['auxiliar_selecao'] = apontamento.auxiliar
+            
+            # Recupera IDs para o campo hidden
+            ids_list = list(apontamento.auxiliares_extras.values_list('id', flat=True))
+            initial_data['auxiliares_extras_list'] = ",".join(map(str, ids_list))
         
         form = ApontamentoForm(initial=initial_data, **user_kwargs)
 
@@ -142,7 +407,7 @@ def editar_apontamento_view(request, pk):
 @login_required
 @user_passes_test(is_owner)
 def excluir_apontamento_view(request, pk):
-    """View para exclusão definitiva de registros (Restrito a Owners)."""
+    """Exclusão de registro (Acesso Admin)."""
     apontamento = get_object_or_404(Apontamento, pk=pk)
     apontamento.delete()
     messages.success(request, "Apontamento excluído com sucesso.")
@@ -150,182 +415,49 @@ def excluir_apontamento_view(request, pk):
 
 
 @login_required
-def configuracoes_view(request):
-    """Exibe configurações de conta e opções de alteração de senha."""
-    context = {
-        'titulo': 'Configurações do Usuário',
-        'change_password_url': '/accounts/password_change/',
-    }
-    return render(request, 'produtividade/configuracoes.html', context)
+@user_passes_test(is_owner)
+def aprovar_ajuste_view(request, pk):
+    """Aprovação rápida de ajuste sem necessidade de edição."""
+    apontamento = get_object_or_404(Apontamento, pk=pk)
+    apontamento.status_ajuste = 'APROVADO'
+    apontamento.save()
+    messages.success(request, "Solicitação marcada como APROVADA.")
+    return redirect('historico_apontamentos')
+
 
 # ==============================================================================
-# VIEW DE HISTÓRICO E RELATÓRIOS
-# Gerencia filtros de data, permissões de visão e explosão de auxiliares
-# ==============================================================================
-
-@login_required
-def historico_apontamentos_view(request):
-    """View de visualização do histórico com filtragem inteligente por data e perfil."""
-    user = request.user
-    queryset = Apontamento.objects.all()
-
-    # --- 1. Gestão de Filtros de Período ---
-    period = request.GET.get('period')
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
-    
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=6) # Padrão última semana
-    current_period = '7'
-
-    if period:
-        try:
-            days = int(period)
-            start_date = end_date - timedelta(days=days - 1)
-            current_period = period
-        except ValueError: pass
-    elif start_date_str and end_date_str:
-        try:
-            start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            current_period = 'custom'
-        except ValueError: pass
-
-    # --- 2. Aplicação de Limites de Segurança (30 dias para não-owners) ---
-    if not is_owner(user):
-        limit_date = timezone.now().date() - timedelta(days=30)
-        if start_date < limit_date:
-            start_date = limit_date
-        queryset = queryset.filter(data_apontamento__gte=limit_date)
-
-    queryset = queryset.filter(data_apontamento__gte=start_date, data_apontamento__lte=end_date)
-
-    # --- 3. Filtragem Baseada em Perfil (RBAC) ---
-    try:
-        colaborador_logado = Colaborador.objects.get(user_account=user)
-    except Colaborador.DoesNotExist:
-        colaborador_logado = None
-
-    if is_owner(user): pass 
-    elif is_admin_or_gestor(user) and colaborador_logado:
-        setores_gerenciados = colaborador_logado.setores_gerenciados.all()
-        if setores_gerenciados.exists():
-            queryset = queryset.filter(
-                Q(colaborador__setor__in=setores_gerenciados) | Q(registrado_por=user)
-            )
-        else:
-            queryset = queryset.filter(registrado_por=user)
-    else:
-        queryset = queryset.filter(registrado_por=user)
-
-    # --- 4. Processamento da Lista e Explosão de Auxiliares ---
-    apontamentos_db = queryset.order_by('-data_apontamento', '-id')
-    historico_lista = []
-
-    for item in apontamentos_db:
-        # Lógica de referência de local
-        if item.local_execucao == 'INT':
-            if item.projeto:
-                p_cod = item.projeto.codigo if item.projeto.codigo else ""
-                local_ref = f"{p_cod} - {item.projeto.nome}" if p_cod else f"{item.projeto.nome}"
-            elif item.codigo_cliente:
-                local_ref = f"{item.codigo_cliente.codigo} - {item.codigo_cliente.nome}"
-            else:
-                local_ref = "Obra/Cliente não informado"
-        else:
-            local_ref = item.centro_custo.nome if item.centro_custo else "Externo"
-            if item.projeto: local_ref += f" (Obra: {item.projeto.codigo})"
-            elif item.codigo_cliente: local_ref += f" (Cli: {item.codigo_cliente.codigo})"
-
-        # Formatação de exibição do Veículo
-        if item.veiculo: veiculo_display = str(item.veiculo)
-        elif item.veiculo_manual_placa: veiculo_display = f"{item.veiculo_manual_modelo} - {item.veiculo_manual_placa} (Externo)"
-        else: veiculo_display = ""
-
-        # Formatação de exibição do Usuário
-        reg_user = item.registrado_por
-        user_display = f"{reg_user.first_name} {reg_user.last_name}" if reg_user and reg_user.first_name else (reg_user.username if reg_user else "Sistema")
-
-        base_dict = {
-            'id': item.id, 'data': item.data_apontamento, 'local_ref': local_ref,
-            'inicio': item.hora_inicio, 'termino': item.hora_termino,
-            'local_tipo': item.get_local_execucao_display(), 'obs': item.ocorrencias,
-            'tangerino': item.local_inicio_jornada, 'tangerino_obs': item.local_inicio_jornada_outros,
-            'registrado_em': item.data_registro, 'registrado_por_str': user_display
-        }
-
-        # Adiciona colaborador principal
-        row_main = base_dict.copy()
-        row_main.update({'nome': item.colaborador.nome_completo, 'cargo': item.colaborador.cargo, 'veiculo': veiculo_display, 'is_auxiliar': False})
-        historico_lista.append(row_main)
-
-        # "Explode" auxiliares como linhas separadas no histórico
-        auxiliares_a_exibir = []
-        if item.auxiliar: auxiliares_a_exibir.append(item.auxiliar)
-        if item.auxiliares_extras_ids:
-            try:
-                ids = [int(x) for x in item.auxiliares_extras_ids.split(',') if x.strip()]
-                auxiliares_a_exibir.extend(Colaborador.objects.filter(id__in=ids))
-            except ValueError: pass
-
-        for aux in auxiliares_a_exibir:
-            row_aux = base_dict.copy()
-            row_aux.update({'nome': aux.nome_completo, 'cargo': aux.cargo, 'veiculo': "", 'is_auxiliar': True})
-            historico_lista.append(row_aux)
-
-    context = {
-        'titulo': "Histórico",
-        'apontamentos_lista': historico_lista,
-        'show_user_column': not is_operacional(user),
-        'is_owner': is_owner(user),
-        'current_period': current_period,
-        'start_date_val': start_date.strftime('%Y-%m-%d'),
-        'end_date_val': end_date.strftime('%Y-%m-%d'),
-    }
-    return render(request, 'produtividade/historico_apontamentos.html', context)
-
-# ==============================================================================
-# APIS AJAX & UTILITÁRIOS
-# Endpoints para dinamismo do frontend (Selects, Calendário, Info)
+# 4. APIs AJAX & UTILITÁRIOS
 # ==============================================================================
 
 @login_required
 def apontamento_sucesso_view(request):
-    """Página de feedback positivo após registro."""
     return render(request, 'produtividade/apontamento_sucesso.html')
 
 @login_required
 def get_projeto_info_ajax(request, projeto_id):
-    """Retorna o nome de um projeto via AJAX."""
     projeto = get_object_or_404(Projeto, pk=projeto_id)
     return JsonResponse({'nome_projeto': projeto.nome})
 
 @login_required
 def get_colaborador_info_ajax(request, colaborador_id):
-    """Retorna o cargo de um colaborador via AJAX."""
     colaborador = get_object_or_404(Colaborador, pk=colaborador_id)
     return JsonResponse({'cargo': colaborador.cargo})
 
 @login_required
 def get_auxiliares_ajax(request):
-    """Lista colaboradores elegíveis como auxiliares para Select2."""
     auxs = Colaborador.objects.filter(cargo__in=['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS']).values('id', 'nome_completo')
     return JsonResponse({'auxiliares': list(auxs)})
 
 @login_required
-def home_view(request):
-    """Menu principal (Dashboard inicial)."""
-    return render(request, 'produtividade/home.html')
-
-@login_required
 def get_centro_custo_info_ajax(request, cc_id):
-    """Retorna regras de alocação do Centro de Custo via AJAX."""
     cc = get_object_or_404(CentroCusto, pk=cc_id)
     return JsonResponse({'permite_alocacao': cc.permite_alocacao})
 
 @login_required
 def get_calendar_status_ajax(request):
-    """Retorna status de preenchimento diário para renderização do calendário UX."""
+    """
+    Retorna o status dos dias no calendário (preenchido, pernoite, etc.) para feedback visual.
+    """
     try:
         month = int(request.GET.get('month'))
         year = int(request.GET.get('year'))
@@ -344,18 +476,206 @@ def get_calendar_status_ajax(request):
     start_date = timezone.datetime(year, month, 1).date()
     end_date = timezone.datetime(year, month, num_days).date()
 
-    dias_com_apontamento = Apontamento.objects.filter(
+    queryset = Apontamento.objects.filter(
         colaborador=colaborador, data_apontamento__gte=start_date, data_apontamento__lte=end_date
-    ).values_list('data_apontamento', flat=True).distinct()
+    ).values('data_apontamento', 'dorme_fora')
     
-    dias_set = set(d.strftime('%Y-%m-%d') for d in dias_com_apontamento)
+    # Mapeia dias com atividades
+    dias_info = {}
+    for entry in queryset:
+        d_str = entry['data_apontamento'].strftime('%Y-%m-%d')
+        if d_str not in dias_info:
+            dias_info[d_str] = entry['dorme_fora']
+        else:
+            if entry['dorme_fora']:
+                dias_info[d_str] = True
+    
     days_data = []
     today = timezone.now().date()
 
     for day in range(1, num_days + 1):
         current_date = timezone.datetime(year, month, day).date()
         date_str = current_date.strftime('%Y-%m-%d')
-        status = 'filled' if date_str in dias_set else ('future' if current_date > today else 'missing')
-        days_data.append({'date': date_str, 'day': day, 'status': status})
+        
+        status = 'missing'
+        has_pernoite = False
+
+        if date_str in dias_info:
+            status = 'filled'
+            has_pernoite = dias_info[date_str]
+        elif current_date > today:
+            status = 'future'
+        
+        days_data.append({
+            'date': date_str, 
+            'day': day, 
+            'status': status,
+            'has_pernoite': has_pernoite
+        })
 
     return JsonResponse({'is_owner': False, 'days': days_data})
+
+# ==============================================================================
+# 5. RELATÓRIOS (EXPORTAÇÃO EXCEL)
+# ==============================================================================
+
+@login_required
+@user_passes_test(is_owner)
+def exportar_relatorio_excel(request):
+    """
+    Gera um relatório consolidado em Excel para conferência de folha e custos.
+    """
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    queryset = Apontamento.objects.select_related(
+        'projeto', 'colaborador', 'veiculo', 'centro_custo', 'codigo_cliente'
+    ).prefetch_related('auxiliares_extras').all().order_by('data_apontamento')
+    
+    if start_date_str and end_date_str:
+        try:
+            start = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            queryset = queryset.filter(data_apontamento__gte=start, data_apontamento__lte=end)
+        except ValueError:
+            pass
+
+    # Setup do Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Relatorio de Horas"
+
+    headers = [
+        "Data", "Dia Semana", "Colaborador", "Cargo", "Origem", "Tipo", 
+        "Local (Obra/Setor)", "Código de Obra", "Código Cliente", 
+        "Veículo", "Placa", "Hora Início", "Hora Fim", "Total Horas", 
+        "Plantão", "Dorme Fora", "Data Pernoite", "Observações", "Registrado Por"
+    ]
+    ws.append(headers)
+
+    # Estilo do cabeçalho
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    def format_duration(inicio, fim):
+        """Calcula a duração considerando virada de dia (ex: 22h às 02h)."""
+        dummy_date = timezone.now().date()
+        dt_inicio = timezone.datetime.combine(dummy_date, inicio)
+        dt_fim = timezone.datetime.combine(dummy_date, fim)
+        
+        # LÓGICA DE CORREÇÃO PARA VIRADA DE NOITE
+        if dt_fim < dt_inicio:
+            dt_fim += timedelta(days=1)
+
+        diff = dt_fim - dt_inicio
+        total_seconds = int(diff.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    dias_semana_pt = {
+        0: 'Segunda-feira', 1: 'Terça-feira', 2: 'Quarta-feira',
+        3: 'Quinta-feira', 4: 'Sexta-feira', 5: 'Sábado', 6: 'Domingo'
+    }
+
+    for item in queryset:
+        data_fmt = item.data_apontamento.strftime('%d/%m/%Y')
+        dia_semana = dias_semana_pt[item.data_apontamento.weekday()]
+        
+        # Origem
+        origem = item.get_local_inicio_jornada_display()
+        if item.local_inicio_jornada == 'OUT' and item.local_inicio_jornada_outros:
+            origem = f"Outros - {item.local_inicio_jornada_outros}"
+        if not origem: origem = "-"
+
+        # Local
+        local_nome = ""
+        col_codigo_obra = ""
+        col_codigo_cliente = ""
+        tipo = "OBRA" if item.local_execucao == 'INT' else "EXTERNO"
+
+        if item.local_execucao == 'INT':
+            if item.projeto:
+                local_nome = item.projeto.nome
+                col_codigo_obra = item.projeto.codigo
+            elif item.codigo_cliente:
+                local_nome = item.codigo_cliente.nome
+                col_codigo_cliente = item.codigo_cliente.codigo
+        else:
+            local_nome = item.centro_custo.nome if item.centro_custo else "Externo"
+            if item.projeto: col_codigo_obra = item.projeto.codigo
+            elif item.codigo_cliente: col_codigo_cliente = item.codigo_cliente.codigo
+
+        if col_codigo_obra and len(col_codigo_obra) >= 5:
+             col_codigo_cliente = col_codigo_obra[1:5]
+        elif col_codigo_obra:
+             col_codigo_cliente = col_codigo_obra
+
+        # Veículo
+        veiculo_nome_modelo = ""
+        veiculo_placa_only = ""
+
+        if item.veiculo:
+            veiculo_nome_modelo = item.veiculo.descricao if item.veiculo.descricao else "Veículo da Frota"
+            veiculo_placa_only = item.veiculo.placa
+        elif item.veiculo_manual_modelo:
+            veiculo_nome_modelo = item.veiculo_manual_modelo
+            veiculo_placa_only = item.veiculo_manual_placa if item.veiculo_manual_placa else ""
+
+        duracao_str = format_duration(item.hora_inicio, item.hora_termino)
+        reg_por = item.registrado_por.username if item.registrado_por else "Sistema"
+
+        plantao_str = "SIM" if item.em_plantao else "NÃO"
+        dorme_fora_str = "SIM" if item.dorme_fora else "NÃO"
+        data_pernoite_str = item.data_dorme_fora.strftime('%d/%m/%Y') if item.data_dorme_fora else "-"
+
+        # Linha Principal
+        row_principal = [
+            data_fmt, dia_semana, item.colaborador.nome_completo, item.colaborador.cargo,
+            origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
+            veiculo_nome_modelo, veiculo_placa_only, item.hora_inicio, item.hora_termino, 
+            duracao_str, plantao_str, dorme_fora_str, data_pernoite_str, 
+            item.ocorrencias, reg_por
+        ]
+        ws.append(row_principal)
+
+        # Linhas Auxiliares (Carona)
+        auxiliares = []
+        if item.auxiliar:
+            auxiliares.append(item.auxiliar)
+        
+        # Correção: Acesso direto ao manager ManyToMany ao invés de atributo inexistente
+        extras = list(item.auxiliares_extras.all())
+        auxiliares.extend(extras)
+
+        for aux in auxiliares:
+            row_aux = [
+                data_fmt, dia_semana, aux.nome_completo, aux.cargo,
+                origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
+                "Carona", "", item.hora_inicio, item.hora_termino, 
+                duracao_str, plantao_str, dorme_fora_str, data_pernoite_str, 
+                f"Auxiliar de: {item.colaborador.nome_completo}", reg_por
+            ]
+            ws.append(row_aux)
+
+    # Auto-ajuste de largura das colunas
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except: pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Relatorio_Horas_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+    
+    wb.save(response)
+    return response

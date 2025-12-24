@@ -16,7 +16,6 @@ class SetorAdmin(admin.ModelAdmin):
 @admin.register(CentroCusto)
 class CentroCustoAdmin(admin.ModelAdmin):
     """Gerenciamento de Centros de Custo / Justificativas para alocação externa."""
-    # Exibe a coluna booleana para fácil visualização
     list_display = ('nome', 'permite_alocacao', 'ativo')
     search_fields = ('nome',)
     list_filter = ('ativo', 'permite_alocacao')
@@ -50,7 +49,7 @@ class ColaboradorAdmin(admin.ModelAdmin):
     
     fields = ('id_colaborador', 'nome_completo', 'cargo', 'setor', 'setores_gerenciados', 'user_account')
     
-    # Cria uma interface visual melhor para selecionar múltiplos setores gerenciados
+    # Interface visual para selecionar múltiplos setores (Caixa de seleção dupla)
     filter_horizontal = ('setores_gerenciados',)
 
 
@@ -70,32 +69,83 @@ class VeiculoAdmin(admin.ModelAdmin):
 class ApontamentoAdmin(admin.ModelAdmin):
     """
     Visão geral dos apontamentos de produtividade.
-    Exibe colunas dinâmicas para exibir o local e detalhamento de alocação de custos.
+    Configurado para alta performance com muitos registros e facilidade de auditoria.
     """
+    # Navegação rápida por data no topo da lista
+    date_hierarchy = 'data_apontamento'
+    
     list_display = (
         'data_apontamento',
         'colaborador',
         'get_tipo_local',
         'get_detalhe_local',
         'hora_inicio',
-        'hora_termino'
+        'hora_termino',
+        'em_plantao',
+        'dorme_fora',
+        'registrado_por'
     )
 
     list_filter = (
-        'data_apontamento',
         'local_execucao',
-        'projeto',
-        'codigo_cliente',
+        'status_ajuste',
+        'em_plantao',
+        'dorme_fora',
         'centro_custo',
-        'colaborador'
+        'projeto'
     )
 
-    # Permite pesquisar pelo nome do colaborador, obra, cliente ou centro de custo
     search_fields = (
         'colaborador__nome_completo',
         'projeto__nome',
+        'projeto__codigo',
         'codigo_cliente__nome',
-        'centro_custo__nome'    
+        'ocorrencias'    
+    )
+
+    # Otimização: Transforma dropdowns em campos de busca (AJAX)
+    # Requer que os Admins relacionados tenham 'search_fields' definidos
+    autocomplete_fields = ['colaborador', 'projeto', 'codigo_cliente', 'centro_custo', 'veiculo']
+
+    # Campos que não devem ser editados manualmente para manter integridade
+    readonly_fields = ('data_registro', 'registrado_por')
+
+    # Organização visual do formulário de edição
+    fieldsets = (
+        ('Identificação e Tempo', {
+            'fields': (
+                ('colaborador', 'data_apontamento'),
+                ('hora_inicio', 'hora_termino'),
+            )
+        }),
+        ('Localização', {
+            'fields': (
+                'local_execucao',
+                ('projeto', 'codigo_cliente'),
+                'centro_custo',
+                ('local_inicio_jornada', 'local_inicio_jornada_outros')
+            )
+        }),
+        ('Recursos e Equipe', {
+            'fields': (
+                ('veiculo', 'veiculo_manual_modelo', 'veiculo_manual_placa'),
+                'auxiliar',
+                'auxiliares_extras'
+            )
+        }),
+        ('Adicionais e Detalhes', {
+            'fields': (
+                ('em_plantao', 'dorme_fora', 'data_dorme_fora'),
+                'ocorrencias'
+            )
+        }),
+        ('Auditoria e Ajustes', {
+            'fields': (
+                ('motivo_ajuste', 'status_ajuste'),
+                ('registrado_por', 'data_registro')
+            ),
+            'classes': ('collapse',) # Esconde essa seção por padrão
+        }),
     )
 
     # --- Métodos Personalizados para Listagem ---
