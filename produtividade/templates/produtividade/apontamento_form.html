@@ -313,16 +313,20 @@
             const inputsWrapper = document.getElementById('inputs-obra-wrapper');
 
             function updateLayout() {
-                const val = localSel.value;
+                const val = $('#id_local_execucao').val();
                 commonBlock.classList.remove('hidden');
-                if(val === 'INT') { 
-                    boxObra.classList.remove('hidden'); boxFora.classList.add('hidden'); insertObra.appendChild(commonBlock); 
+                if(val === 'INT') {
+                    boxObra.classList.remove('hidden'); boxFora.classList.add('hidden'); insertObra.appendChild(commonBlock);
                     const ref = document.getElementById('insertion-point-obra'); boxObra.insertBefore(inputsWrapper, ref);
-                } else { 
-                    boxObra.classList.add('hidden'); boxFora.classList.remove('hidden'); insertFora.appendChild(commonBlock); 
+                } else {
+                    boxObra.classList.add('hidden'); boxFora.classList.remove('hidden'); insertFora.appendChild(commonBlock);
                 }
             }
-            if(localSel) { localSel.addEventListener('change', updateLayout); setTimeout(updateLayout, 50); }
+            if(localSel) {
+                $('#id_local_execucao').on('change', updateLayout);
+                localSel.addEventListener('change', updateLayout);
+                setTimeout(updateLayout, 50);
+            }
 
             const radios = document.querySelectorAll('input[name="local_inicio_jornada"]');
             const outrosContainer = document.getElementById('tangerino-outros-container');
