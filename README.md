@@ -8,24 +8,31 @@ Sistema web desenvolvido em **Python/Django** para gestão de produtividade e co
 
 ## Funcionalidades Principais
 
-* **Apontamento Flexível:** Registro de horas vinculado a **Obra Específica** (com adendo) ou **Código de Cliente Geral** (para setores que não tem informações de adendo), garantindo exclusividade e precisão no dado.
+### 🚀 Gestão Operacional
+* **Apontamento Flexível:** Registro de horas vinculado a **Obra Específica** (com adendo) ou **Código de Cliente Geral** (para setores que não tem informações de adendo), garantindo rastreabilidade de custos.
 * **Gestão de Veículos:** Seleção de frota cadastrada ou cadastro rápido de veículos externos/alugados durante o apontamento.
 * **Equipes Dinâmicas:** Adição de múltiplos auxiliares (Auxiliares/Oficiais) em um único registro de ponto.
 * **Início da Jornada** Registro do local de início da jornada para conciliação com ponto eletrônico para cálculo de deslocamento.
 * **Histórico Detalhado:** Visualização inteligente que "explode" os registros, mostrando separadamente o colaborador principal e seus auxiliares.
-* **UX Aprimorada:**
-    * Autocomplete em campos de seleção (Select2).
-    * Modal de Feedback com resumo antes do envio.
-    * Layout responsivo e Dark Mode nativo.
+
+### 📋 Folha e Financeiro
+* **Indicadores de Folha:** Checkboxes específicos para sinalizar **Plantão** e **Pernoite/Diária** (com data específica), agilizando o fechamento mensal.
+* **Workflow de Ajustes:** Fluxo de solicitação de correção onde o colaborador justifica o erro e o gestor aprova ou rejeita, mantendo histórico auditável.
+* **Exportação Avançada (Excel):** Geração de relatórios `.xlsx` consolidados, com cálculo automático de horas (incluindo virada de noite) e separação de custos por centro/obra.
+
+### 🎨 Experiência do Usuário (UX)
+* **Calendário Visual:** Visualização mensal com indicadores de status (Pendente/Preenchido) e ícones para dias com pernoite.
+* **Interface Responsiva:** Design *Mobile-First* com Dark Mode nativo utilizando TailwindCSS.
+* **Feedback Imediato:** Modais de confirmação e validação de conflitos de horário (Overlap) em tempo real.
 
 ## Controle de Acesso e Permissões (RBAC)
 
 O sistema implementa uma hierarquia de acesso robusta para garantir a segurança e organização dos dados:
 
-* **OWNER (Superusuário):** Acesso irrestrito. Visualiza o histórico global, envia formulários para qualquer colaborador e possui permissão exclusiva para **Editar** e **Excluir** registros (CRUD completo).
-* **ADMINISTRATIVO:** Pode enviar formulários e visualizar o histórico de colaboradores pertencentes aos **"Setores sob Gestão"** (configurados no cadastro do usuário), além de seus próprios registros.
-* **GESTOR:** Pode enviar formulários apenas para si mesmo, mas possui permissão de **visualização** do histórico de todos os colaboradores dos seus "Setores sob Gestão".
-* **OPERACIONAL:** Acesso restrito. Pode enviar formulários e visualizar o histórico apenas de **si mesmo**.
+* **OWNER (Superusuário):** Acesso irrestrito. Visualiza histórico global, gerencia cadastros, aprova ajustes e exporta relatórios financeiros.
+* **ADMINISTRATIVO:** Visualiza e gerencia colaboradores pertencentes aos **"Setores sob Gestão"**, além de seus próprios registros.
+* **GESTOR:** Envia formulários apenas para si, mas possui visão gerencial (leitura) sobre sua equipe.
+* **OPERACIONAL:** Acesso restrito. Pode apenas registrar e visualizar seu próprio histórico.
 
 ## Visão de Futuro & Roadmap
 
@@ -38,9 +45,10 @@ Este projeto é o alicerce (MVP) para um ecossistema maior de gestão de obras. 
 
 ## Tecnologias Utilizadas
 
-* **Backend:** Python, Django 5
-* **Frontend:** HTML5, TailwindCSS (via CDN), JavaScript (Vanilla + jQuery)
-* **Bibliotecas JS:** Select2 (para caixas de seleção pesquisáveis)
+* **Backend:** Python 3, Django 5
+* **Frontend:** HTML5, TailwindCSS (CDN), JavaScript Moderno
+* **Bibliotecas:** * `Select2` (Selects pesquisáveis via AJAX)
+    * `OpenPyXL` (Geração de relatórios Excel)
 * **Banco de Dados:** SQLite (Desenvolvimento)
 
 ## Como Executar o Projeto
