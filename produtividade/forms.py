@@ -2,6 +2,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.safestring import mark_safe
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import datetime, timedelta
 from .models import Apontamento, Colaborador, Veiculo, Projeto, Setor, CodigoCliente, CentroCusto
 
 class ApontamentoForm(forms.ModelForm):
@@ -106,7 +108,7 @@ class ApontamentoForm(forms.ModelForm):
         model = Apontamento
         fields = [
             'colaborador', 'data_apontamento', 'local_execucao',
-            'projeto', 'codigo_cliente', 'local_inicio_jornada', 'local_inicio_jornada_outros',
+            'projeto', 'codigo_cliente',
             'centro_custo', 'hora_inicio', 'hora_termino', 'ocorrencias',
             'veiculo_manual_modelo', 'veiculo_manual_placa',
             'em_plantao', 'data_plantao', 'dorme_fora', 'data_dorme_fora'
@@ -121,11 +123,6 @@ class ApontamentoForm(forms.ModelForm):
             'hora_termino': forms.TimeInput(attrs={'type': 'time'}),
             'ocorrencias': forms.Textarea(attrs={'rows': 3}),
             'local_execucao': forms.Select(attrs={'class': 'form-select'}),
-            'local_inicio_jornada': forms.RadioSelect(), 
-            'local_inicio_jornada_outros': forms.TextInput(attrs={
-                'placeholder': 'Especifique o local...', 
-                'class': 'form-control'
-            }),
             'centro_custo': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
@@ -156,10 +153,6 @@ class ApontamentoForm(forms.ModelForm):
         choices += [(v.id, str(v)) for v in veiculos_db]
         choices.append(('OUTRO', 'OUTRO (Cadastrar Novo)'))
         self.fields['veiculo_selecao'].choices = choices
-
-        # Remove opção vazia indesejada do RadioSelect
-        choices_tang = list(self.fields['local_inicio_jornada'].choices)
-        self.fields['local_inicio_jornada'].choices = [c for c in choices_tang if c[0] != '']
 
         # Lógica de Permissão (RBAC)
         if self.user:
@@ -214,7 +207,7 @@ class ApontamentoForm(forms.ModelForm):
 
         # Aplicação massiva de classes CSS (Tailwind/Bootstrap)
         for name, field in self.fields.items():
-            if name not in ['registrar_veiculo', 'registrar_auxiliar', 'local_inicio_jornada', 'em_plantao', 'dorme_fora']:
+            if name not in ['registrar_veiculo', 'registrar_auxiliar', 'em_plantao', 'dorme_fora']:
                 if 'class' not in field.widget.attrs:
                     field.widget.attrs.update({'class': 'form-control'})
                 elif 'form-control' not in field.widget.attrs['class']:
@@ -232,8 +225,9 @@ class ApontamentoForm(forms.ModelForm):
     def clean(self):
         """
         Validação centralizada de regras de negócio.
+        - Bloqueia datas/horários futuros.
         - Detecta conflitos de agenda (overlap).
-        - Valida obrigatoriedade condicional de campos (Veículos, Locais, Auxiliares).
+        - Valida obrigatoriedade condicional de campos.
         """
         cleaned_data = super().clean()
         
@@ -242,7 +236,38 @@ class ApontamentoForm(forms.ModelForm):
         inicio = cleaned_data.get('hora_inicio')
         termino = cleaned_data.get('hora_termino')
 
-        # 1. Detecção de Conflitos (Overlap)
+        # 1. Bloqueio de Datas Futuras
+        if data_apontamento and inicio and termino:
+            # Pega o "Agora" com fuso horário correto
+            agora = timezone.localtime(timezone.now())
+            
+            # Monta a data/hora completa do Início
+            dt_inicio = timezone.make_aware(
+                datetime.combine(data_apontamento, inicio)
+            )
+            
+            # Monta a data/hora completa do Término
+            dt_termino = timezone.make_aware(
+                datetime.combine(data_apontamento, termino)
+            )
+
+            # LÓGICA DA VIRADA: Se terminou "antes" de começar (ex: 23h as 02h), 
+            # significa que o término é no dia seguinte.
+            if dt_termino < dt_inicio:
+                dt_termino += timedelta(days=1)
+
+            # Verifica se é futuro
+            if dt_inicio > agora:
+                self.add_error('hora_inicio', "O horário de início não pode ser no futuro.")
+            
+            if dt_termino > agora:
+                self.add_error('hora_termino', "O horário de término não pode ser no futuro.")
+
+        # Se houver erros, retorna imediatamente
+        if self.errors:
+            return cleaned_data
+
+        # 2. Detecção de Conflitos (Overlap)
         if colaborador and data_apontamento and inicio and termino and inicio < termino:
             query = Apontamento.objects.filter(
                 colaborador=colaborador,
@@ -299,13 +324,11 @@ class ApontamentoForm(forms.ModelForm):
                 """)
                 raise ValidationError(error_message)
 
-        # 2. Validação de Local e Contexto
+        # 3. Validação de Local e Contexto
         local = cleaned_data.get('local_execucao')
         projeto = cleaned_data.get('projeto')
         cod_cliente = cleaned_data.get('codigo_cliente')
         centro_custo = cleaned_data.get('centro_custo')
-        tangerino = cleaned_data.get('local_inicio_jornada')
-        tangerino_obs = cleaned_data.get('local_inicio_jornada_outros')
 
         if local == 'INT':
             # Regras para trabalho interno (Obra/Cliente)
@@ -318,12 +341,6 @@ class ApontamentoForm(forms.ModelForm):
                 self.add_error('codigo_cliente', "Informe a Obra Específica ou o Código do Cliente.")
 
             cleaned_data['centro_custo'] = None
-            
-            if tangerino == 'OUT' and not tangerino_obs:
-                self.add_error('local_inicio_jornada_outros', "Especifique o local para 'Outros'.")
-            
-            if tangerino != 'OUT': 
-                cleaned_data['local_inicio_jornada_outros'] = ""
                 
         elif local == 'EXT':
             # Regras para trabalho externo (Centro de Custo/Justificativa)
@@ -339,9 +356,7 @@ class ApontamentoForm(forms.ModelForm):
                 self.instance.projeto = None
                 self.instance.codigo_cliente = None
             
-            cleaned_data['local_inicio_jornada'] = None
-
-        # 3. Validação de Veículos
+        # 4. Validação de Veículos
         if cleaned_data.get('registrar_veiculo'):
             selection = cleaned_data.get('veiculo_selecao')
             if not selection:
@@ -364,7 +379,7 @@ class ApontamentoForm(forms.ModelForm):
             cleaned_data['veiculo_manual_modelo'] = None
             cleaned_data['veiculo_manual_placa'] = None
 
-        # 4. Validação de Auxiliares
+        # 5. Validação de Auxiliares
         if cleaned_data.get('registrar_auxiliar'):
             if not cleaned_data.get('auxiliar_selecao'):
                 self.add_error('auxiliar_selecao', "Selecione o Auxiliar.")
@@ -376,18 +391,21 @@ class ApontamentoForm(forms.ModelForm):
             self.instance.auxiliar = None
             self.instance.auxiliares_extras_ids = ''
 
-        # 5. Validação de Adicionais (Plantão e Dorme-Fora)
+        # 6. Validação de Adicionais (Plantão e Dorme-Fora)
         if cleaned_data.get('em_plantao'):
-            if not cleaned_data.get('data_plantao'):
+            dt_plantao = cleaned_data.get('data_plantao')
+            if not dt_plantao:
                 self.add_error(None, "Selecione a Data do Plantão no calendário.")
-            else:
-                cleaned_data['data_plantao'] = None
+            elif dt_plantao != data_apontamento:
+                # Aqui garantimos que, mesmo se o calendário falhar, o backend barra
+                self.add_error(None, "A Data do Plantão deve ser a mesma do registro principal.")
 
         if cleaned_data.get('dorme_fora'):
-            if not cleaned_data.get('data_dorme_fora'):
+            dt_dorme = cleaned_data.get('data_dorme_fora')
+            if not dt_dorme:
                 self.add_error(None, "Selecione a Data do Dorme-Fora no calendário.")
-        else:
-            cleaned_data['data_dorme_fora'] = None
-
+            elif dt_dorme != data_apontamento:
+                self.add_error(None, "A Data do Dorme-Fora deve ser a mesma do registro principal.")
+                
         return cleaned_data
     

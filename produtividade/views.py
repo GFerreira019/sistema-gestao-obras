@@ -236,8 +236,6 @@ def historico_apontamentos_view(request):
             'termino': item.hora_termino,
             'local_tipo': item.get_local_execucao_display(),
             'obs': item.ocorrencias,
-            'tangerino': item.local_inicio_jornada,
-            'tangerino_obs': item.local_inicio_jornada_outros,
             'registrado_em': item.data_registro,
             'registrado_por_str': user_display,
             'em_plantao': item.em_plantao,
@@ -622,11 +620,12 @@ def exportar_relatorio_excel(request):
     ws = wb.active
     ws.title = "Relatorio de Horas"
 
+    # Cabeçalho
     headers = [
-        "Data", "Dia Semana", "Colaborador", "Cargo", "Origem", "Tipo", 
+        "Data", "Dia Semana", "Colaborador", "Cargo", "Tipo", 
         "Local (Obra/Setor)", "Código de Obra", "Código Cliente", 
         "Veículo", "Placa", "Hora Início", "Hora Fim", "Total Horas", 
-        "Plantão", "Data Plantão", "Dorme Fora", "Data Dorme-Fora", "Observações", "Registrado Por"
+        "Plantão", "Dorme Fora", "Observações", "Registrado Por"
     ]
     ws.append(headers)
 
@@ -637,12 +636,12 @@ def exportar_relatorio_excel(request):
         cell.alignment = Alignment(horizontal='center', vertical='center')
 
     def format_duration(inicio, fim):
-        """Calcula a duração considerando virada de dia (ex: 22h às 02h)."""
+        """Calcula a duração considerando virada de dia."""
+        if not inicio or not fim: return "00:00:00"
         dummy_date = timezone.now().date()
         dt_inicio = timezone.datetime.combine(dummy_date, inicio)
         dt_fim = timezone.datetime.combine(dummy_date, fim)
         
-        # LÓGICA DE CORREÇÃO PARA VIRADA DE NOITE
         if dt_fim < dt_inicio:
             dt_fim += timedelta(days=1)
 
@@ -662,12 +661,6 @@ def exportar_relatorio_excel(request):
         data_fmt = item.data_apontamento.strftime('%d/%m/%Y')
         dia_semana = dias_semana_pt[item.data_apontamento.weekday()]
         
-        # Origem
-        origem = item.get_local_inicio_jornada_display()
-        if item.local_inicio_jornada == 'OUT' and item.local_inicio_jornada_outros:
-            origem = f"Outros - {item.local_inicio_jornada_outros}"
-        if not origem: origem = "-"
-
         # Local
         local_nome = ""
         col_codigo_obra = ""
@@ -705,17 +698,16 @@ def exportar_relatorio_excel(request):
         duracao_str = format_duration(item.hora_inicio, item.hora_termino)
         reg_por = item.registrado_por.username if item.registrado_por else "Sistema"
 
+        # Apenas Status SIM/NÃO
         plantao_str = "SIM" if item.em_plantao else "NÃO"
-        data_plantao_str = item.data_plantao.strftime('%d/%m/%Y') if item.data_plantao else "-"
         dorme_fora_str = "SIM" if item.dorme_fora else "NÃO"
-        data_dorme_fora_str = item.data_dorme_fora.strftime('%d/%m/%Y') if item.data_dorme_fora else "-"
 
-        # Linha Principal
+        # Linha Principal (Colunas ajustadas)
         row_principal = [
             data_fmt, dia_semana, item.colaborador.nome_completo, item.colaborador.cargo,
-            origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
+            tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
             veiculo_nome_modelo, veiculo_placa_only, item.hora_inicio, item.hora_termino, 
-            duracao_str, plantao_str, data_plantao_str, dorme_fora_str, data_dorme_fora_str, 
+            duracao_str, plantao_str, dorme_fora_str, 
             item.ocorrencias, reg_por
         ]
         ws.append(row_principal)
@@ -725,16 +717,15 @@ def exportar_relatorio_excel(request):
         if item.auxiliar:
             auxiliares.append(item.auxiliar)
         
-        # Correção: Acesso direto ao manager ManyToMany ao invés de atributo inexistente
         extras = list(item.auxiliares_extras.all())
         auxiliares.extend(extras)
 
         for aux in auxiliares:
             row_aux = [
                 data_fmt, dia_semana, aux.nome_completo, aux.cargo,
-                origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
+                tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
                 "Carona", "", item.hora_inicio, item.hora_termino, 
-                duracao_str, plantao_str, data_plantao_str, dorme_fora_str, data_dorme_fora_str, 
+                duracao_str, plantao_str, dorme_fora_str, 
                 f"Auxiliar de: {item.colaborador.nome_completo}", reg_por
             ]
             ws.append(row_aux)
@@ -813,7 +804,6 @@ def api_exportar_json(request):
         base_obj = {
             'data': fmt_data(item.data_apontamento),
             'dia_semana': item.data_apontamento.weekday(), 
-            'origem': item.get_local_inicio_jornada_display(),
             'tipo': 'OBRA' if item.local_execucao == 'INT' else 'EXTERNO',
             'local': local_nome,
             'codigo_obra': codigo_obra,

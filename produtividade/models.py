@@ -192,13 +192,6 @@ class Apontamento(models.Model):
         ('INT', 'Dentro da obra'), 
         ('EXT', 'Fora da obra')
     ]
-    
-    TANGERINO_CHOICES = [
-        ('OUT', 'Outros'), 
-        ('RES', 'Residência'), 
-        ('CLI', 'Cliente'), 
-        ('SED', 'Sede ATGB')
-    ]
 
     # --- 1. Identificação e Tempo ---
     colaborador = models.ForeignKey(
@@ -259,16 +252,8 @@ class Apontamento(models.Model):
     veiculo_manual_placa = models.CharField(
         max_length=20, blank=True, null=True, verbose_name="Placa (Manual)"
     )
-
-    # --- 4. Conciliação de Jornada (Tangerino) ---
-    local_inicio_jornada = models.CharField(
-        max_length=3, choices=TANGERINO_CHOICES, null=True, blank=True, verbose_name="Início Jornada"
-    )
-    local_inicio_jornada_outros = models.CharField(
-        max_length=100, blank=True, null=True, verbose_name="Detalhe Outros"
-    )
     
-    # --- 5. Equipe e Ocorrências ---
+    # --- 4. Equipe e Ocorrências ---
     ocorrencias = models.TextField(
         blank=True, null=True, verbose_name="Ocorrências / Obs."
     )
@@ -287,7 +272,7 @@ class Apontamento(models.Model):
         verbose_name="Auxiliares Extras"
     )
 
-    # --- 6. Adicionais de Folha ---
+    # --- 5. Adicionais de Folha ---
     em_plantao = models.BooleanField(
         default=False, 
         verbose_name="Atividade em Plantão?"
@@ -307,13 +292,13 @@ class Apontamento(models.Model):
         verbose_name="Data do Dorme-Fora"
     )
 
-    # --- 7. Auditoria ---
+    # --- 6. Auditoria ---
     registrado_por = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário de Registro"
     )
     data_registro = models.DateTimeField(auto_now_add=True)
 
-    # --- 8. Controle de Ajustes (Solicitações) ---
+    # --- 7. Controle de Ajustes (Solicitações) ---
     motivo_ajuste = models.TextField(
         blank=True, 
         null=True, 

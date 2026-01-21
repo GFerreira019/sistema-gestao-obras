@@ -123,7 +123,6 @@ class ApontamentoAdmin(admin.ModelAdmin):
                 'local_execucao',
                 ('projeto', 'codigo_cliente'),
                 'centro_custo',
-                ('local_inicio_jornada', 'local_inicio_jornada_outros')
             )
         }),
         ('Recursos e Equipe', {
@@ -135,7 +134,8 @@ class ApontamentoAdmin(admin.ModelAdmin):
         }),
         ('Adicionais e Detalhes', {
             'fields': (
-                ('em_plantao', 'dorme_fora', 'data_dorme_fora'),
+                ('em_plantao', 'data_plantao'), 
+                ('dorme_fora', 'data_dorme_fora'),
                 'ocorrencias'
             )
         }),

@@ -17,10 +17,7 @@
         }
         .form-control:focus { outline: 2px solid #6366f1; border-color: #6366f1; }
         select option { color: #000; background: #fff; }
-        #id_local_inicio_jornada { display: flex; flex-direction: column; gap: 0.5rem; }
-        #id_local_inicio_jornada div { display: flex; align-items: center; gap: 0.5rem; }
-        #id_local_inicio_jornada label { cursor: pointer; color: #cbd5e1; }
-        input[type="radio"], input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; cursor: pointer; }
+        input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; cursor: pointer; }
 
         /* Select2 Dark */
         .select2-container { width: 100% !important; }
@@ -128,13 +125,6 @@
                     </div>
                 </div>
                 <div id="insertion-point-obra" class="mt-6"></div>
-                <div id="tangerino-wrapper" class="mt-6 pt-6 border-t border-slate-800">
-                    <div class="bg-slate-800/80 p-4 rounded border border-emerald-700/50">
-                        <label class="font-bold text-sm text-white mb-3 block">Início da jornada (primeiro ponto no Tangerino) *</label>
-                        <div class="pl-2">{{ form.local_inicio_jornada }}</div>
-                        <div id="tangerino-outros-container" class="hidden mt-3 pl-2 border-l-2 border-emerald-500"><label class="text-xs text-emerald-400 block mb-1">Especifique o Local *</label>{{ form.local_inicio_jornada_outros }}</div>
-                    </div>
-                </div>
             </div>
 
             <div id="container-fora" class="hidden bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
@@ -333,15 +323,6 @@
                 setTimeout(updateLayout, 50);
             }
 
-            const radios = document.querySelectorAll('input[name="local_inicio_jornada"]');
-            const outrosContainer = document.getElementById('tangerino-outros-container');
-            radios.forEach(radio => {
-                radio.addEventListener('change', (e) => {
-                    if (e.target.value === 'OUT') { outrosContainer.classList.remove('hidden'); } 
-                    else { outrosContainer.classList.add('hidden'); document.getElementById('id_local_inicio_jornada_outros').value = ''; }
-                });
-            });
-
             const vCheck = document.getElementById('id_registrar_veiculo');
             const vCont = document.getElementById('veiculo-container');
             if(vCheck) vCheck.addEventListener('change', () => vCheck.checked ? vCont.classList.remove('hidden') : vCont.classList.add('hidden'));
@@ -498,18 +479,28 @@
             }
 
             window.openDateSelector = function(inputId, title = "Selecione uma Data") {
+                if (inputId === 'id_data_plantao' || inputId === 'id_data_dorme_fora') {
+                    const mainDateVal = document.getElementById('id_data_apontamento').value;
+                    if (!mainDateVal) {
+                        alert("Por favor, preencha a Data do Registro (Início) primeiro.");
+                        return;
+                    }
+                    
+                    const parts = mainDateVal.split('/');
+                    pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                } else {
+                    const currVal = document.getElementById(inputId).value;
+                    if (currVal && currVal.includes('/')) {
+                        const parts = currVal.split('/');
+                        pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    } else {
+                        pickerDate = new Date();
+                    }
+                }
+
                 activeDateInputId = inputId;
                 pickerTitle.textContent = title;
                 pickerModal.classList.remove('hidden');
-                
-                const currVal = document.getElementById(inputId).value;
-                if (currVal && currVal.includes('/')) {
-                    // Parse DD/MM/AAAA to Date object
-                    const parts = currVal.split('/');
-                    pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                } else {
-                    pickerDate = new Date();
-                }
                 renderPicker();
             }
 
@@ -542,57 +533,119 @@
                 const daysInMonth = new Date(y, m + 1, 0).getDate();
                 const today = new Date();
 
-                // 1. Ler a data selecionada no campo de registro
-                const dataRegInput = document.getElementById('id_data_apontamento').value;
-                let dataRegistro = null;
-                if (dataRegInput && dataRegInput.includes('/')) {
-                    const parts = dataRegInput.split('/');
-                    dataRegistro = new Date(parts[2], parts[1] - 1, parts[0]);
-                }
+                // Pega a data principal para comparação
+                const dataPrincipalStr = document.getElementById('id_data_apontamento').value;
+                
+                // Verifica se estamos no modo "Restrito" (Plantão ou Dorme Fora)
+                const isRestrictedMode = (activeDateInputId === 'id_data_plantao' || activeDateInputId === 'id_data_dorme_fora');
 
+                // Preenche espaços vazios antes do dia 1
                 for(let i=0; i<firstDay; i++) { pickerGrid.appendChild(document.createElement('div')); }
 
                 for(let d=1; d<=daysInMonth; d++) {
                     const el = document.createElement('div');
-                    // Adicionado 'border border-transparent' para evitar pulo no layout
-                    el.className = "h-8 w-8 flex items-center justify-center rounded cursor-pointer hover:bg-slate-600 transition border border-transparent";
-                    el.textContent = d;
-                    const currentDate = new Date(y, m, d);
                     
-                    const isToday = currentDate.toDateString() === today.toDateString();
-                    const isRegistro = dataRegistro && currentDate.toDateString() === dataRegistro.toDateString();
+                    const currentDate = new Date(y, m, d);
+                    // Zera as horas para comparar datas corretamente
+                    const isToday = currentDate.getDate() === today.getDate() && 
+                                  currentDate.getMonth() === today.getMonth() && 
+                                  currentDate.getFullYear() === today.getFullYear();
 
-                    // 2. Lógica de Estilos (Prioridade para Data Registro)
-                    if (isRegistro) {
-                        el.classList.remove('border-transparent');
-                        el.classList.add('border-green-500', 'text-white-400', 'font-bold');
-                        if (isToday) el.classList.add('bg-indigo-900/30'); // Fundo sutil se for ambos
-                    } else if (isToday) {
-                        el.classList.remove('border-transparent');
-                        el.classList.add('border-blue-500', 'text-white-400', 'font-bold');
-                    }
+                    const formattedCurrent = `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`;
+                    
+                    // CONFIGURAÇÃO BASE
+                    el.className = "h-8 w-8 flex items-center justify-center rounded transition text-sm border border-transparent";
+                    el.textContent = d;
 
-                    el.onclick = function() {
-                        // Format DD/MM/AAAA
-                        const formattedDate = `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`;
+                    let isClickable = true;
+
+                    // ==========================================================
+                    // LÓGICA DE ESTILOS E BLOQUEIO
+                    // ==========================================================
+                    
+                    if (isRestrictedMode) {
+                        // --- MODO RESTRITO (Plantão / Dorme Fora) ---
                         
-                        if (activeDateInputId) {
-                            const input = document.getElementById(activeDateInputId);
-                            input.value = formattedDate;
+                        if (formattedCurrent === dataPrincipalStr) {
+                            // É A DATA VÁLIDA: Fundo Verde Sólido (Igual legenda "Data Registro")
+                            el.classList.remove('border-transparent');
+                            el.classList.add('bg-emerald-600', 'text-white', 'font-bold', 'cursor-pointer', 'shadow-md');
+                        } else {
+                            // NÃO É A DATA VÁLIDA (Bloqueado)
+                            isClickable = false;
+                            el.classList.add('cursor-not-allowed');
 
-                            if (activeDateInputId === 'id_data_plantao') {
-                                feedbackPlantaoDisplay.textContent = formattedDate;
-                                feedbackPlantaoText.classList.remove('hidden');
-                            }
-
-                            if (activeDateInputId === 'id_data_dorme_fora') {
-                                feedbackDisplay.textContent = formattedDate;
-                                feedbackText.classList.remove('hidden');
+                            if (isToday) {
+                                // É HOJE (Mas inválido): Borda Azul visível + Opacidade média
+                                // Isso mostra "Hoje" sem confundir que é clicável
+                                el.classList.remove('border-transparent');
+                                el.classList.add('border-blue-500', 'text-blue-400', 'font-bold', 'opacity-60');
+                            } else {
+                                // OUTROS DIAS: Apagados
+                                el.classList.add('text-gray-600', 'opacity-20');
                             }
                         }
-                        pickerModal.classList.add('hidden');
-                        activeDateInputId = null;
-                    };
+                    } 
+                    else {
+                        // --- MODO NORMAL (Seleção Principal) ---
+                        
+                        el.classList.add('cursor-pointer', 'hover:bg-slate-700');
+                        
+                        const currentInputVal = document.getElementById(activeDateInputId).value;
+                        const isSelected = currentInputVal === formattedCurrent;
+
+                        if (isSelected) {
+                             // Selecionado: Fundo Verde
+                             el.classList.remove('border-transparent');
+                             el.classList.add('bg-emerald-600', 'text-white', 'font-bold', 'shadow-md');
+                        } else if (isToday) {
+                             // Hoje: Borda Azul
+                             el.classList.remove('border-transparent');
+                             el.classList.add('border-blue-500', 'text-blue-400', 'font-bold');
+                        } else {
+                            // Dias comuns
+                            el.classList.add('text-gray-300');
+                        }
+                    }
+
+                    // Evento de Clique
+                    if (isClickable) {
+                        el.onclick = function() {
+                            const finalDate = formattedCurrent;
+                            
+                            if (activeDateInputId) {
+                                const input = document.getElementById(activeDateInputId);
+                                input.value = finalDate;
+
+                                // Feedback visual
+                                if (activeDateInputId === 'id_data_plantao') {
+                                    feedbackPlantaoDisplay.textContent = finalDate;
+                                    feedbackPlantaoText.classList.remove('hidden');
+                                }
+                                if (activeDateInputId === 'id_data_dorme_fora') {
+                                    feedbackDisplay.textContent = finalDate;
+                                    feedbackText.classList.remove('hidden');
+                                }
+                                
+                                // Limpeza de consistência se mudar a data principal
+                                if (activeDateInputId === 'id_data_apontamento') {
+                                    const pInput = document.getElementById('id_data_plantao');
+                                    const dInput = document.getElementById('id_data_dorme_fora');
+                                    
+                                    if(pInput && pInput.value && pInput.value !== finalDate) {
+                                        pInput.value = ''; 
+                                        feedbackPlantaoText.classList.add('hidden');
+                                    }
+                                    if(dInput && dInput.value && dInput.value !== finalDate) {
+                                        dInput.value = ''; 
+                                        feedbackText.classList.add('hidden');
+                                    }
+                                }
+                            }
+                            pickerModal.classList.add('hidden');
+                            activeDateInputId = null;
+                        };
+                    }
                     pickerGrid.appendChild(el);
                 }
             }
@@ -607,13 +660,6 @@
             const mainForm = document.getElementById('apontamentoForm');
             window.closeConfirmModal = function() { modal.classList.add('hidden'); }
             function formatDate(dateStr) { if(!dateStr) return ""; const [y, m, d] = dateStr.split('-'); return `${d}-${m}-${y}`; }
-            function getTangerinoIcon(code) {
-                if(code === 'RES') return '<svg class="h-5 w-5 text-blue-400 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg> Residência';
-                if(code === 'CLI') return '<svg class="h-5 w-5 text-orange-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg> Cliente';
-                if(code === 'SED') return '<svg class="h-5 w-5 text-purple-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg> Sede ATGB';
-                if(code === 'OUT') return '<svg class="h-5 w-5 text-yellow-400 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg> Outros';
-                return "";
-            }
 
             btnPreSave.addEventListener('click', function() {
                 const data = {
@@ -625,8 +671,6 @@
                     obra_id: $('#id_projeto').val(),
                     cliente_txt: $('#id_codigo_cliente').select2('data')[0]?.text || "",
                     cliente_id: $('#id_codigo_cliente').val(),
-                    tangerino: document.querySelector('input[name="local_inicio_jornada"]:checked')?.value,
-                    tangerino_outros: document.getElementById('id_local_inicio_jornada_outros').value,
                     centro_custo_txt: $('#id_centro_custo').select2('data')[0]?.text || "",
                     centro_custo_id: $('#id_centro_custo').val(),
                     inicio: document.getElementById('id_hora_inicio').value,
@@ -659,7 +703,6 @@
                 if(data.local === 'INT') {
                     if(!data.obra_id && !data.cliente_id) errors.push("Selecione o Código da Obra OU o Código do Cliente.");
                     if(data.obra_id && data.cliente_id) errors.push("Selecione APENAS UM (Obra ou Cliente), não ambos.");
-                    if(!data.tangerino) errors.push("Início da jornada (Tangerino) é obrigatório.");
                 } else {
                     if(!data.centro_custo_id) errors.push("Centro de Custo / Justificativa é obrigatório.");
                 }
@@ -667,6 +710,34 @@
                 if(data.em_plantao && !data.data_plantao) errors.push("Selecione a data do Plantão.");
 
                 if(data.dorme_fora && !data.data_dorme_fora) errors.push("Selecione a data do Dorme-Fora.");
+
+                if (data.data_pt && data.inicio && data.fim) {
+                    const parts = data.data_pt.split('/');
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // Mês 0-11 no JS
+                    const year = parseInt(parts[2]);
+
+                    const [hIni, mIni] = data.inicio.split(':').map(Number);
+                    const [hFim, mFim] = data.fim.split(':').map(Number);
+
+                    // Cria objetos Date completos
+                    let dtStart = new Date(year, month, day, hIni, mIni);
+                    let dtEnd = new Date(year, month, day, hFim, mFim);
+                    
+                    // LÓGICA DA VIRADA: Se Fim < Início, adiciona 1 dia ao Fim
+                    if (dtEnd < dtStart) {
+                        dtEnd.setDate(dtEnd.getDate() + 1);
+                    }
+
+                    const now = new Date(); // Agora
+
+                    if (dtStart > now) {
+                        errors.push("O horário de início não pode ser no futuro.");
+                    }
+                    if (dtEnd > now) {
+                        errors.push("O horário de término não pode ser no futuro.");
+                    }
+                }
 
                 if(errors.length > 0) {
                     modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10";
