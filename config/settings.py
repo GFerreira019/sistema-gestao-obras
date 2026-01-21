@@ -10,22 +10,26 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Carrega as variáveis do arquivo .env
+load_dotenv() 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-x#*#@+qn#-vqqiyiudapl8uozjjzc(*dvt^&i*7k#_05at7%n0'
+# Lendo do arquivo .env (Se não achar, usa um valor padrão inseguro)
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-x#*#@+qn#-vqqiyiudapl8uozjjzc(*dvt^&i*7k#_05at7%n0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*'] # Em produção: ['127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -37,10 +41,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'produtividade.apps.ProdutividadeConfig',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -134,3 +140,13 @@ LOGOUT_REDIRECT_URL = 'login'
 
 # Define o redirecionamento após a troca de senha (Volta para o Login)
 PASSWORD_CHANGE_DONE_URL = '/accounts/login/'
+
+# CONFIGURAÇÃO DE SEGURANÇA DA API
+# Configuração da API Key lendo do .env (no laravel está em [DjangoSyncService.php])
+DJANGO_API_KEY = os.getenv('DJANGO_API_KEY', 'chave_secreta_123')
+
+# Configurações CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8081",  # Local do Dashboard PHP
+    "http://localhost:8081",  # Variação comum
+]

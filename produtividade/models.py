@@ -150,7 +150,7 @@ class Colaborador(models.Model):
         ordering = ['nome_completo']
 
     def __str__(self):
-        return f"{self.nome_completo} ({self.cargo})"
+        return f"{self.nome_completo}"
 
 
 class Veiculo(models.Model):
@@ -292,6 +292,11 @@ class Apontamento(models.Model):
         default=False, 
         verbose_name="Atividade em Plantão?"
     )
+    data_plantao = models.DateField(
+        null=True, 
+        blank=True, 
+        verbose_name="Data do Plantão"
+    )
     dorme_fora = models.BooleanField(
         default=False, 
         verbose_name="Dorme Fora Nesta Data?"
@@ -299,7 +304,7 @@ class Apontamento(models.Model):
     data_dorme_fora = models.DateField(
         null=True, 
         blank=True, 
-        verbose_name="Data do Pernoite"
+        verbose_name="Data do Dorme-Fora"
     )
 
     # --- 7. Auditoria ---

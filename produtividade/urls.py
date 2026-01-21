@@ -43,6 +43,15 @@ urlpatterns = [
     path('api/get-calendar-status/', views.get_calendar_status_ajax, name='get_calendar_status_ajax'),
 
     # ==========================================================================
+    # INTEGRAÇÃO EXTERNA (Dashboard PHP)
+    # ==========================================================================
+    # 1. Status Online/Offline e Gráficos de hoje
+    path('api/dashboard/', views.api_dashboard_data, name='api_dashboard_data'),
+    
+    # 2. Sincronização completa de dados (Excel JSON)
+    path('api/exportar-completo/', views.api_exportar_json, name='api_exportar_completo'),
+
+    # ==========================================================================
     # RELATÓRIOS E EXPORTAÇÃO
     # ==========================================================================
     path('exportar/excel/', views.exportar_relatorio_excel, name='exportar_relatorio_excel'),

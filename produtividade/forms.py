@@ -83,6 +83,11 @@ class ApontamentoForm(forms.ModelForm):
         required=False,
         label="Atividade em Plantão?"
     )
+    data_plantao = forms.DateField(
+        required=False,
+        widget=forms.HiddenInput(),
+        input_formats=['%d/%m/%Y', '%Y-%m-%d']
+    )
     dorme_fora = forms.BooleanField(
         required=False,
         label="Dorme Fora Nesta Data?"
@@ -104,7 +109,7 @@ class ApontamentoForm(forms.ModelForm):
             'projeto', 'codigo_cliente', 'local_inicio_jornada', 'local_inicio_jornada_outros',
             'centro_custo', 'hora_inicio', 'hora_termino', 'ocorrencias',
             'veiculo_manual_modelo', 'veiculo_manual_placa',
-            'em_plantao', 'dorme_fora', 'data_dorme_fora'
+            'em_plantao', 'data_plantao', 'dorme_fora', 'data_dorme_fora'
         ]
         widgets = {
             'data_apontamento': forms.TextInput(attrs={
@@ -371,11 +376,18 @@ class ApontamentoForm(forms.ModelForm):
             self.instance.auxiliar = None
             self.instance.auxiliares_extras_ids = ''
 
-        # 5. Validação de Adicionais (Pernoite)
+        # 5. Validação de Adicionais (Plantão e Dorme-Fora)
+        if cleaned_data.get('em_plantao'):
+            if not cleaned_data.get('data_plantao'):
+                self.add_error(None, "Selecione a Data do Plantão no calendário.")
+            else:
+                cleaned_data['data_plantao'] = None
+
         if cleaned_data.get('dorme_fora'):
             if not cleaned_data.get('data_dorme_fora'):
-                self.add_error(None, "Selecione a Data do Pernoite no calendário.")
+                self.add_error(None, "Selecione a Data do Dorme-Fora no calendário.")
         else:
             cleaned_data['data_dorme_fora'] = None
 
         return cleaned_data
+    

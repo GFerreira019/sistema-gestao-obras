@@ -2,12 +2,15 @@ from django.shortcuts import render, redirect, get_object_or_404, HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime, date
 import calendar
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+import json
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
 # Imports locais
 from .forms import ApontamentoForm
@@ -456,7 +459,7 @@ def get_centro_custo_info_ajax(request, cc_id):
 @login_required
 def get_calendar_status_ajax(request):
     """
-    Retorna o status dos dias no calendário (preenchido, pernoite, etc.) para feedback visual.
+    Retorna o status dos dias no calendário (preenchido, dorme_fora, etc.) para feedback visual.
     """
     try:
         month = int(request.GET.get('month'))
@@ -473,8 +476,8 @@ def get_calendar_status_ajax(request):
         return JsonResponse({'error': 'Colaborador não encontrado'}, status=400)
 
     _, num_days = calendar.monthrange(year, month)
-    start_date = timezone.datetime(year, month, 1).date()
-    end_date = timezone.datetime(year, month, num_days).date()
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days)
 
     queryset = Apontamento.objects.filter(
         colaborador=colaborador, data_apontamento__gte=start_date, data_apontamento__lte=end_date
@@ -494,15 +497,15 @@ def get_calendar_status_ajax(request):
     today = timezone.now().date()
 
     for day in range(1, num_days + 1):
-        current_date = timezone.datetime(year, month, day).date()
+        current_date = date(year, month, day)
         date_str = current_date.strftime('%Y-%m-%d')
         
         status = 'missing'
-        has_pernoite = False
+        has_dorme_fora = False
 
         if date_str in dias_info:
             status = 'filled'
-            has_pernoite = dias_info[date_str]
+            has_dorme_fora = dias_info[date_str]
         elif current_date > today:
             status = 'future'
         
@@ -510,10 +513,84 @@ def get_calendar_status_ajax(request):
             'date': date_str, 
             'day': day, 
             'status': status,
-            'has_pernoite': has_pernoite
+            'has_dorme_fora': has_dorme_fora
         })
 
     return JsonResponse({'is_owner': False, 'days': days_data})
+
+@csrf_exempt
+def api_dashboard_data(request):
+    """
+    API JSON para alimentar o Dashboard externo (PHP) ou interno.
+    Agora protegida por API Key, igual à exportação.
+    """
+    # 1. Segurança via API Key
+    api_key_esperada = getattr(settings, 'DJANGO_API_KEY', 'chave_secreta_123')
+    token_recebido = request.headers.get('X-API-KEY')
+
+    # Permite acesso se tiver a chave OU se for usuário logado no navegador
+    if token_recebido != api_key_esperada and not request.user.is_authenticated:
+         return JsonResponse({'erro': 'Acesso Negado'}, status=403)
+
+    # 2. Definir o range de datas (Vamos pegar dados de HOJE)
+    hoje = timezone.now().date()
+    
+    # 3. Buscar os apontamentos
+    qs = Apontamento.objects.filter(data_apontamento=hoje).select_related('projeto', 'colaborador')
+
+    # 4. Processar métricas
+    total_registros = qs.count()
+    total_segundos = 0
+    projetos_ativos = {}
+    colaboradores_ids = set()
+
+    for a in qs:
+        # Calcular horas (Termino - Inicio)
+        if a.hora_inicio and a.hora_termino:
+            dummy_date = date(2000, 1, 1)
+            dt_inicio = datetime.combine(dummy_date, a.hora_inicio)
+            dt_termino = datetime.combine(dummy_date, a.hora_termino)
+            
+            # Ajuste para virada de noite
+            if dt_termino < dt_inicio:
+                dt_termino += timedelta(days=1)
+            
+            diff = dt_termino - dt_inicio
+            total_segundos += diff.total_seconds()
+
+        # Contagem por Projeto
+        nome_proj = "Outros"
+        if a.local_execucao == 'INT':
+             if a.projeto: nome_proj = a.projeto.nome
+             elif a.codigo_cliente: nome_proj = f"Cliente {a.codigo_cliente.codigo}"
+        else:
+             if a.centro_custo: nome_proj = a.centro_custo.nome
+
+        projetos_ativos[nome_proj] = projetos_ativos.get(nome_proj, 0) + 1
+        
+        # Colaboradores únicos
+        if a.colaborador:
+            colaboradores_ids.add(a.colaborador.nome_completo)
+
+    # Converter segundos para Horas decimais
+    total_horas = round(total_segundos / 3600, 2)
+
+    # 5. Montar o JSON de resposta
+    data = {
+        'data_referencia': hoje.strftime('%d/%m/%Y'),
+        'kpis': {
+            'total_apontamentos': total_registros,
+            'total_horas': total_horas,
+            'colaboradores_ativos': len(colaboradores_ids),
+        },
+        'grafico_projetos': {
+            'labels': list(projetos_ativos.keys()),
+            'valores': list(projetos_ativos.values())
+        },
+        'lista_colaboradores': list(colaboradores_ids)
+    }
+
+    return JsonResponse(data)
 
 # ==============================================================================
 # 5. RELATÓRIOS (EXPORTAÇÃO EXCEL)
@@ -549,7 +626,7 @@ def exportar_relatorio_excel(request):
         "Data", "Dia Semana", "Colaborador", "Cargo", "Origem", "Tipo", 
         "Local (Obra/Setor)", "Código de Obra", "Código Cliente", 
         "Veículo", "Placa", "Hora Início", "Hora Fim", "Total Horas", 
-        "Plantão", "Dorme Fora", "Data Pernoite", "Observações", "Registrado Por"
+        "Plantão", "Data Plantão", "Dorme Fora", "Data Dorme-Fora", "Observações", "Registrado Por"
     ]
     ws.append(headers)
 
@@ -629,15 +706,16 @@ def exportar_relatorio_excel(request):
         reg_por = item.registrado_por.username if item.registrado_por else "Sistema"
 
         plantao_str = "SIM" if item.em_plantao else "NÃO"
+        data_plantao_str = item.data_plantao.strftime('%d/%m/%Y') if item.data_plantao else "-"
         dorme_fora_str = "SIM" if item.dorme_fora else "NÃO"
-        data_pernoite_str = item.data_dorme_fora.strftime('%d/%m/%Y') if item.data_dorme_fora else "-"
+        data_dorme_fora_str = item.data_dorme_fora.strftime('%d/%m/%Y') if item.data_dorme_fora else "-"
 
         # Linha Principal
         row_principal = [
             data_fmt, dia_semana, item.colaborador.nome_completo, item.colaborador.cargo,
             origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
             veiculo_nome_modelo, veiculo_placa_only, item.hora_inicio, item.hora_termino, 
-            duracao_str, plantao_str, dorme_fora_str, data_pernoite_str, 
+            duracao_str, plantao_str, data_plantao_str, dorme_fora_str, data_dorme_fora_str, 
             item.ocorrencias, reg_por
         ]
         ws.append(row_principal)
@@ -656,7 +734,7 @@ def exportar_relatorio_excel(request):
                 data_fmt, dia_semana, aux.nome_completo, aux.cargo,
                 origem, tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
                 "Carona", "", item.hora_inicio, item.hora_termino, 
-                duracao_str, plantao_str, dorme_fora_str, data_pernoite_str, 
+                duracao_str, plantao_str, data_plantao_str, dorme_fora_str, data_dorme_fora_str, 
                 f"Auxiliar de: {item.colaborador.nome_completo}", reg_por
             ]
             ws.append(row_aux)
@@ -679,3 +757,105 @@ def exportar_relatorio_excel(request):
     
     wb.save(response)
     return response
+
+
+@csrf_exempt
+def api_exportar_json(request):
+    api_key_esperada = getattr(settings, 'DJANGO_API_KEY', 'chave_secreta_123')
+    token_recebido = request.headers.get('X-API-KEY')
+    if token_recebido != api_key_esperada: return JsonResponse({'erro': 'Acesso Negado'}, status=403)
+
+    days = int(request.GET.get('days', 45))
+    start_date = timezone.now().date() - timedelta(days=days)
+    
+    queryset = Apontamento.objects.select_related(
+        'projeto', 'colaborador', 'veiculo', 'centro_custo', 'codigo_cliente'
+    ).prefetch_related('auxiliares_extras').filter(
+        data_apontamento__gte=start_date
+    ).order_by('data_apontamento')
+
+    dados_saida = []
+
+    def fmt_hora(h): return h.strftime('%H:%M:%S') if h else None
+    def fmt_data(d): return d.strftime('%Y-%m-%d') if d else None
+
+    for item in queryset:
+        local_nome = ""
+        codigo_obra = None
+        codigo_cliente = None
+        
+        if item.local_execucao == 'INT':
+            if item.projeto:
+                local_nome = item.projeto.nome
+                codigo_obra = item.projeto.codigo
+            elif item.codigo_cliente:
+                local_nome = item.codigo_cliente.nome
+                codigo_cliente = item.codigo_cliente.codigo
+        else:
+            local_nome = item.centro_custo.nome if item.centro_custo else "Externo"
+            if item.projeto: codigo_obra = item.projeto.codigo
+            elif item.codigo_cliente: codigo_cliente = item.codigo_cliente.codigo
+
+        if codigo_obra and len(str(codigo_obra)) >= 5:
+             if not codigo_cliente: codigo_cliente = str(codigo_obra)[1:5]
+        elif codigo_obra and not codigo_cliente:
+             codigo_cliente = codigo_obra
+
+        veiculo_nome = ""
+        placa = ""
+        if item.veiculo:
+            veiculo_nome = item.veiculo.descricao
+            placa = item.veiculo.placa
+        elif item.veiculo_manual_modelo:
+            veiculo_nome = item.veiculo_manual_modelo
+            placa = item.veiculo_manual_placa
+
+        base_obj = {
+            'data': fmt_data(item.data_apontamento),
+            'dia_semana': item.data_apontamento.weekday(), 
+            'origem': item.get_local_inicio_jornada_display(),
+            'tipo': 'OBRA' if item.local_execucao == 'INT' else 'EXTERNO',
+            'local': local_nome,
+            'codigo_obra': codigo_obra,
+            'codigo_cliente': codigo_cliente,
+            'hora_inicio': fmt_hora(item.hora_inicio),
+            'hora_fim': fmt_hora(item.hora_termino), 
+            'observacoes': item.ocorrencias,
+            'registrado_por': item.registrado_por.username if item.registrado_por else 'Sistema',
+            'dorme_fora': item.dorme_fora,
+            'em_plantao': item.em_plantao,
+            'status': item.status_ajuste or 'OK'
+        }
+
+        row_main = base_obj.copy()
+        row_main.update({
+            'colaborador': item.colaborador.nome_completo,
+            'cargo': item.colaborador.cargo,
+            'veiculo': veiculo_nome,
+            'placa': placa,
+            'is_auxiliar': False
+        })
+        dados_saida.append(row_main)
+
+        auxiliares = []
+        if item.auxiliar: auxiliares.append(item.auxiliar)
+        auxiliares.extend(list(item.auxiliares_extras.all()))
+
+        for aux in auxiliares:
+            row_aux = base_obj.copy()
+            row_aux.update({
+                'colaborador': aux.nome_completo,
+                'cargo': aux.cargo,
+                'veiculo': 'Carona', 
+                'placa': None,
+                'is_auxiliar': True,
+                # Auxiliares herdam o status do apontamento principal, 
+                # mas geralmente não ganham plantão/dorme fora automaticamente (regra de negócio),
+                # vamos manter false para evitar duplicidade de custo visual, ou true se a regra for essa.
+                # Vou manter FALSE para caronas por segurança.
+                'dorme_fora': True if item.dorme_fora else False, 
+                'em_plantao': True if item.em_plantao else False, 
+            })
+            dados_saida.append(row_aux)
+
+    return JsonResponse(dados_saida, safe=False)
