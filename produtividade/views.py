@@ -70,9 +70,11 @@ def home_redirect_view(request):
 @login_required
 def home_view(request):
     is_gestor = is_gerente(request.user)
+    is_owner_user = is_owner(request.user)
 
     context = {
-        'is_gestor': is_gestor
+        'is_gestor': is_gestor,
+        'is_owner': is_owner_user
     }
     return render(request, 'produtividade/home.html', context)
 
@@ -973,19 +975,27 @@ def api_exportar_json(request):
 def aprovacao_dashboard_view(request):
     """
     Lista de pendências para o Gerente.
-    Filtra apenas colaboradores dos setores que o gerente administra.
+    Se for Owner (Superuser), vê tudo.
+    Se for Gestor Comum, vê apenas colaboradores dos seus setores.
     """
-    try:
-        gerente = Colaborador.objects.get(user_account=request.user)
-        meus_setores = gerente.setores_gerenciados.all()
-    except Colaborador.DoesNotExist:
-        messages.error(request, "Seu usuário não está vinculado a um cadastro de Colaborador/Gestor.")
-        return redirect('produtividade:home_menu')
-
-    pendentes = Apontamento.objects.filter(
-        status_aprovacao='EM_ANALISE',
-        colaborador__setor__in=meus_setores
-    ).exclude(colaborador=gerente).select_related('colaborador', 'projeto', 'centro_custo').order_by('data_apontamento')
+    if is_owner(request.user):
+        pendentes = Apontamento.objects.filter(
+            status_aprovacao='EM_ANALISE'
+        ).select_related('colaborador', 'projeto', 'centro_custo').order_by('data_apontamento')
+        
+    else:
+        try:
+            gerente = Colaborador.objects.get(user_account=request.user)
+            meus_setores = gerente.setores_gerenciados.all()
+            
+            pendentes = Apontamento.objects.filter(
+                status_aprovacao='EM_ANALISE',
+                colaborador__setor__in=meus_setores
+            ).exclude(colaborador=gerente).select_related('colaborador', 'projeto', 'centro_custo').order_by('data_apontamento')
+            
+        except Colaborador.DoesNotExist:
+            messages.error(request, "Seu usuário não está vinculado a um cadastro de Colaborador/Gestor.")
+            return redirect('produtividade:home_menu')
 
     context = {
         'pendentes': pendentes,

@@ -73,6 +73,13 @@
                 <p class="text-gray-400 text-sm">
                     {% if is_editing %}Editando Registro #{{ apontamento_id }}{% else %}Novo Apontamento{% endif %}
                 </p>
+                
+                <div id="gps-status" class="mt-2 inline-flex items-center gap-2 text-xs font-bold text-gray-500 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Buscando GPS...</span>
+                </div>
             </div>
             <div class="flex items-center gap-4">
                 <a href="{% url 'produtividade:historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" /></svg>Ver Histórico</a>
@@ -841,12 +848,52 @@
                 modal.classList.remove('hidden');
             });
 
+            function capturarGPS(callbackSucesso, callbackErro) {
+                const statusDiv = document.getElementById('gps-status');
+                
+                if (!("geolocation" in navigator)) {
+                    statusDiv.innerHTML = '<span class="text-red-400">GPS não suportado</span>';
+                    if (callbackErro) callbackErro();
+                    return;
+                }
+
+                // Atualiza visual para "Buscando"
+                statusDiv.className = "mt-2 inline-flex items-center gap-2 text-xs font-bold text-yellow-500 bg-yellow-900/20 px-3 py-1 rounded-full border border-yellow-500/30";
+                statusDiv.innerHTML = `<svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Buscando GPS...</span>`;
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // Sucesso
+                        document.getElementById('id_latitude').value = position.coords.latitude.toFixed(6);
+                        document.getElementById('id_longitude').value = position.coords.longitude.toFixed(6);
+                        
+                        statusDiv.className = "mt-2 inline-flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-900/20 px-3 py-1 rounded-full border border-emerald-500/30";
+                        statusDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg><span>Localização OK</span>`;
+                        
+                        if (callbackSucesso) callbackSucesso();
+                    },
+                    (error) => {
+                        // Erro
+                        console.warn("GPS:", error.message);
+                        statusDiv.className = "mt-2 inline-flex items-center gap-2 text-xs font-bold text-red-400 bg-red-900/20 px-3 py-1 rounded-full border border-red-500/30";
+                        statusDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg><span>Localização pendente...</span>`;
+                        
+                        if (callbackErro) callbackErro();
+                    },
+                    { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
+                );
+            }
+
+            // 2. Tenta capturar assim que carrega a página (Solicitação 1)
+            capturarGPS();
+
+            // 3. Evento do Botão de Confirmação (Solicitação 2 - Insistente)
             btnConfirmSubmit.addEventListener('click', function(e) { 
                 e.preventDefault(); 
                 
+                // Função para envio final (AJAX)
                 function submitFinalForm() {
                     const formData = new FormData(mainForm);
-                    
                     fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(response => { if (response.redirected) { window.location.href = response.url; return; } return response.text().then(html => ({ html, url: response.url })); })
                     .then(result => {
@@ -872,27 +919,30 @@
                     });
                 }
 
-                btnConfirmSubmit.disabled = true;
-                btnConfirmSubmit.textContent = "Obtendo Localização...";
+                // Verifica se já temos lat/lon preenchidos
+                const lat = document.getElementById('id_latitude').value;
+                const lon = document.getElementById('id_longitude').value;
 
-                if ("geolocation" in navigator) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            document.getElementById('id_latitude').value = position.coords.latitude.toFixed(6);
-                            document.getElementById('id_longitude').value = position.coords.longitude.toFixed(6);
+                if (lat && lon) {
+                    // Já tem GPS, envia direto
+                    btnConfirmSubmit.disabled = true;
+                    btnConfirmSubmit.textContent = "Enviando...";
+                    submitFinalForm();
+                } else {
+                    // Não tem GPS, tenta pedir de novo
+                    btnConfirmSubmit.disabled = true;
+                    btnConfirmSubmit.textContent = "Obtendo Localização...";
+                    
+                    capturarGPS(
+                        () => { // Sucesso na 2ª tentativa
                             btnConfirmSubmit.textContent = "Enviando...";
                             submitFinalForm();
                         },
-                        (error) => {
-                            console.warn("GPS não obtido:", error.message);
+                        () => { // Falha na 2ª tentativa (Envia sem GPS mesmo)
                             btnConfirmSubmit.textContent = "Enviando (Sem GPS)...";
                             submitFinalForm();
-                        },
-                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                        }
                     );
-                } else {
-                    btnConfirmSubmit.textContent = "Enviando...";
-                    submitFinalForm();
                 }
             });
         });
