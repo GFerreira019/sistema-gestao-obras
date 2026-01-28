@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+app_name = 'produtividade'
+
 urlpatterns = [
     # ==========================================================================
     # NAVEGAÇÃO BÁSICA
@@ -32,6 +34,13 @@ urlpatterns = [
 
     # Aprovar Ajuste (Gestor aceita a correção)
     path('apontamento/<int:pk>/aprovar-ajuste/', views.aprovar_ajuste_view, name='aprovar_ajuste'),
+
+    # ==========================================================================
+    # FLUXO DE APROVAÇÃO (GERENTE)
+    # ==========================================================================
+    path('aprovacoes/', views.aprovacao_dashboard_view, name='aprovacao_dashboard'),
+    path('aprovacoes/<int:pk>/analise/', views.analise_apontamento_view, name='analise_apontamento'),
+    path('aprovacoes/<int:pk>/processar/', views.processar_aprovacao_view, name='processar_aprovacao'),
 
     # ==========================================================================
     # APIs AJAX

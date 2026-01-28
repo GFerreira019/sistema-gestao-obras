@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
+from datetime import date, datetime, timedelta
 
 # ==============================================================================
 # TABELAS AUXILIARES (CADASTROS)
@@ -20,8 +21,8 @@ class Setor(models.Model):
     ativo = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Setor (Acesso/Lotação)"
-        verbose_name_plural = "Setores (Acesso/Lotação)"
+        verbose_name = "Setor da Empresa"
+        verbose_name_plural = "Setores da Empresa"
         ordering = ['nome']
 
     def __str__(self):
@@ -192,6 +193,13 @@ class Apontamento(models.Model):
         ('INT', 'Dentro da obra'), 
         ('EXT', 'Fora da obra')
     ]
+    
+    STATUS_APROVACAO_CHOICES = [
+        ('EM_ANALISE', 'Em Análise'),
+        ('APROVADO', 'Aprovado'),
+        ('REJEITADO', 'Rejeitado'),
+        ('SOLICITACAO_AJUSTE', 'Solicitação de Ajuste'),
+    ]
 
     # --- 1. Identificação e Tempo ---
     colaborador = models.ForeignKey(
@@ -292,31 +300,86 @@ class Apontamento(models.Model):
         verbose_name="Data do Dorme-Fora"
     )
 
-    # --- 6. Auditoria ---
+    # --- 6. Auditoria (Criação) ---
     registrado_por = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário de Registro"
     )
     data_registro = models.DateTimeField(auto_now_add=True)
 
-    # --- 7. Controle de Ajustes (Solicitações) ---
+    # --- 7. Controle de Ajustes e Workflow ---
+    id_agrupamento = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="ID de Agrupamento (Rateio)"
+    )
+
     motivo_ajuste = models.TextField(
         blank=True, 
         null=True, 
-        verbose_name="Motivo do Ajuste"
+        verbose_name="Motivo do Ajuste (Solicitação)"
     )
     
-    STATUS_AJUSTE_CHOICES = [
-        ('PENDENTE', 'Pendente'),
-        ('APROVADO', 'Aprovado'),
-    ]
-    
+    status_aprovacao = models.CharField(
+        max_length=20,
+        choices=STATUS_APROVACAO_CHOICES,
+        default='EM_ANALISE',
+        verbose_name="Status Workflow"
+    )
+
     status_ajuste = models.CharField(
         max_length=20,
-        choices=STATUS_AJUSTE_CHOICES,
+        choices=[('PENDENTE', 'Pendente'), ('APROVADO', 'Aprovado')],
         null=True,
         blank=True,
-        verbose_name="Status da Solicitação"
+        verbose_name="Status da Solicitação (Legado)"
     )
+
+    contagem_edicao = models.IntegerField(
+        default=0,
+        verbose_name="Qtd. Edições Realizadas"
+    )
+    
+    motivo_rejeicao = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Motivo da Rejeição (Gerente)"
+    )
+
+    # --- 8. Geolocalização ---
+    latitude = models.DecimalField(
+        max_digits=12,
+        decimal_places=8, 
+        null=True, 
+        blank=True, 
+        verbose_name="Latitude"
+    )
+    longitude = models.DecimalField(
+        max_digits=12, 
+        decimal_places=8, 
+        null=True, 
+        blank=True, 
+        verbose_name="Longitude"
+    )
+
+    @property
+    def duracao_total_str(self):
+        """Calcula a duração formatada HH:MM considerando virada de dia"""
+        if not self.hora_inicio or not self.hora_termino:
+            return "00:00"
+        
+        d = date(2000, 1, 1)
+        dt_ini = datetime.combine(d, self.hora_inicio)
+        dt_fim = datetime.combine(d, self.hora_termino)
+        
+        if dt_fim < dt_ini:
+            dt_fim += timedelta(days=1)
+            
+        diff = dt_fim - dt_ini
+        total_seconds = int(diff.total_seconds())
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        return f"{h:02d}:{m:02d}"
 
     class Meta:
         verbose_name = "Apontamento"
@@ -325,3 +388,45 @@ class Apontamento(models.Model):
 
     def __str__(self):
         return f"{self.colaborador} - {self.data_apontamento}"
+
+
+# ==============================================================================
+# TABELAS DE HISTÓRICO E AUDITORIA
+# ==============================================================================
+
+class ApontamentoHistorico(models.Model):
+    """
+    Armazena o estado anterior de um apontamento antes de ser editado.
+    Permite que o Gerente compare a versão original com a editada.
+    """
+    apontamento_original = models.ForeignKey(
+        Apontamento,
+        on_delete=models.CASCADE,
+        related_name='historico_versoes',
+        verbose_name="Apontamento Original"
+    )
+    
+    dados_snapshot = models.JSONField(
+        verbose_name="Cópia dos Dados (Snapshot)"
+    )
+    
+    editado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Editado Por"
+    )
+    
+    data_edicao = models.DateTimeField(auto_now_add=True)
+    
+    numero_edicao = models.IntegerField(
+        verbose_name="Versão da Edição"
+    )
+
+    class Meta:
+        verbose_name = "Histórico de Alteração"
+        verbose_name_plural = "Históricos de Alterações"
+        ordering = ['-data_edicao']
+
+    def __str__(self):
+        return f"V{self.numero_edicao} - {self.apontamento_original}"

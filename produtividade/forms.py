@@ -74,8 +74,17 @@ class ApontamentoForm(forms.ModelForm):
         label="Auxiliar Principal"
     )
     
-    # Campo oculto para armazenar IDs de múltiplos auxiliares (manipulado via JS)
     auxiliares_extras_list = forms.CharField(
+        required=False, 
+        widget=forms.HiddenInput()
+    )
+
+    # --- Gestão de Múltiplas Obras (Rateio) ---
+    registrar_multiplas_obras = forms.BooleanField(
+        required=False, 
+        label="Ratear em múltiplas obras?"
+    )
+    obras_extras_list = forms.CharField(
         required=False, 
         widget=forms.HiddenInput()
     )
@@ -100,6 +109,10 @@ class ApontamentoForm(forms.ModelForm):
         input_formats=['%d/%m/%Y', '%Y-%m-%d']
     )
 
+    # --- Geolocalização ---
+    latitude = forms.DecimalField(widget=forms.HiddenInput(), required=False)
+    longitude = forms.DecimalField(widget=forms.HiddenInput(), required=False)
+
     # ==========================================================================
     # CONFIGURAÇÕES DE META (MODELO)
     # ==========================================================================
@@ -108,10 +121,11 @@ class ApontamentoForm(forms.ModelForm):
         model = Apontamento
         fields = [
             'colaborador', 'data_apontamento', 'local_execucao',
-            'projeto', 'codigo_cliente',
+            'projeto', 'codigo_cliente', 'obras_extras_list',
             'centro_custo', 'hora_inicio', 'hora_termino', 'ocorrencias',
             'veiculo_manual_modelo', 'veiculo_manual_placa',
-            'em_plantao', 'data_plantao', 'dorme_fora', 'data_dorme_fora'
+            'em_plantao', 'data_plantao', 'dorme_fora', 'data_dorme_fora',
+            'latitude', 'longitude'
         ]
         widgets = {
             'data_apontamento': forms.TextInput(attrs={
@@ -141,13 +155,16 @@ class ApontamentoForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        # Configurações iniciais de Querysets e Formatos
+        if self.instance and self.instance.pk and self.instance.data_apontamento:
+            self.initial['data_apontamento'] = self.instance.data_apontamento.strftime('%d/%m/%Y')
+
+        # Configurações iniciais
         self.fields['data_apontamento'].input_formats = ['%d/%m/%Y', '%Y-%m-%d']
         self.fields['projeto'].queryset = Projeto.objects.filter(ativo=True)
         self.fields['centro_custo'].queryset = CentroCusto.objects.filter(ativo=True)
         self.fields['codigo_cliente'].queryset = CodigoCliente.objects.filter(ativo=True)
         
-        # Popula combobox de veículos (Banco de Dados + Opção Manual)
+        # Popula combobox de veículos
         veiculos_db = Veiculo.objects.all()
         choices = [('', '-- Escolha o Veículo --')]
         choices += [(v.id, str(v)) for v in veiculos_db]
@@ -157,11 +174,25 @@ class ApontamentoForm(forms.ModelForm):
         # Lógica de Permissão (RBAC)
         if self.user:
             is_owner = self.user.is_superuser
-            is_gestor = self.user.groups.filter(name='GESTOR').exists()
-            is_admin = self.user.groups.filter(name='ADMINISTRATIVO').exists()
+            # Verifica Grupos
+            groups = list(self.user.groups.values_list('name', flat=True))
+            is_gestor = 'GESTOR' in groups
+            is_admin = 'ADMINISTRATIVO' in groups
+            is_coord = 'COORDENADOR' in groups
             
+            # --- REGRA DE RATEIO (Múltiplas Obras) ---
+            # Liberado para: Owner, Coordenador, Administrativo
+            pode_ratear = is_owner or is_coord or is_admin
+            
+            if not pode_ratear:
+                # Remove os campos de rateio para quem não tem permissão
+                if 'registrar_multiplas_obras' in self.fields:
+                    del self.fields['registrar_multiplas_obras']
+                if 'obras_extras_list' in self.fields:
+                    del self.fields['obras_extras_list']
+
+            # --- REGRA DE COLABORADOR (Quem vê quem) ---
             if is_owner:
-                # Superusuário vê tudo
                 self.fields['colaborador'].queryset = Colaborador.objects.all()
             
             elif is_admin:
@@ -181,8 +212,8 @@ class ApontamentoForm(forms.ModelForm):
                 except Colaborador.DoesNotExist:
                     self.fields['colaborador'].queryset = Colaborador.objects.none()
             
-            elif is_gestor:
-                # Gestor vê apenas a si mesmo (mas o campo fica travado visualmente)
+            elif is_gestor or is_coord:
+                # Gestor e Coord vêem a si mesmos no formulário padrão 
                 try:
                     colaborador_logado = Colaborador.objects.get(user_account=self.user)
                     self.initial['colaborador'] = colaborador_logado
@@ -192,7 +223,7 @@ class ApontamentoForm(forms.ModelForm):
                     self.fields['colaborador'].queryset = Colaborador.objects.none()
             
             else: 
-                # Usuário padrão vê apenas a si mesmo (travado)
+                # Operacional vê apenas a si mesmo
                 try:
                     colaborador_logado = Colaborador.objects.get(user_account=self.user)
                     self.initial['colaborador'] = colaborador_logado
@@ -205,7 +236,7 @@ class ApontamentoForm(forms.ModelForm):
         self.fields['hora_inicio'].required = True
         self.fields['hora_termino'].required = True
 
-        # Aplicação massiva de classes CSS (Tailwind/Bootstrap)
+        # Aplicação massiva de classes CSS
         for name, field in self.fields.items():
             if name not in ['registrar_veiculo', 'registrar_auxiliar', 'em_plantao', 'dorme_fora']:
                 if 'class' not in field.widget.attrs:
@@ -214,7 +245,7 @@ class ApontamentoForm(forms.ModelForm):
                      field.widget.attrs['class'] += ' form-control'
     
     def _lock_colaborador_field(self, colaborador_logado):
-        """Bloqueia visualmente o campo colaborador para usuários sem permissão de troca."""
+        """Bloqueia visualmente o campo colaborador."""
         self.fields['colaborador'].widget.attrs.update({
             'class': 'form-control pointer-events-none bg-slate-700 text-gray-400 cursor-not-allowed',
             'tabindex': '-1'
@@ -230,6 +261,15 @@ class ApontamentoForm(forms.ModelForm):
         - Valida obrigatoriedade condicional de campos.
         """
         cleaned_data = super().clean()
+
+        if self.user:
+            is_owner = self.user.is_superuser
+            groups = list(self.user.groups.values_list('name', flat=True))
+            pode_ratear = is_owner or 'COORDENADOR' in groups or 'ADMINISTRATIVO' in groups
+            
+            if not pode_ratear:
+                cleaned_data['registrar_multiplas_obras'] = False
+                cleaned_data['obras_extras_list'] = ''
         
         colaborador = cleaned_data.get('colaborador')
         data_apontamento = cleaned_data.get('data_apontamento')
@@ -348,6 +388,11 @@ class ApontamentoForm(forms.ModelForm):
                 self.add_error('centro_custo', "Selecione o Setor / Justificativa (Custo).")
             
             if centro_custo and centro_custo.permite_alocacao:
+                if not projeto and not cod_cliente:
+                     msg = "Para esta Justificativa, é OBRIGATÓRIO informar a Obra ou Cliente."
+                     self.add_error('projeto', msg)
+                     self.add_error('codigo_cliente', msg)
+                
                 if projeto and cod_cliente:
                     self.add_error('projeto', "Selecione apenas a Obra ou o Cliente, não ambos.")
             else:
@@ -400,12 +445,9 @@ class ApontamentoForm(forms.ModelForm):
                 # Aqui garantimos que, mesmo se o calendário falhar, o backend barra
                 self.add_error(None, "A Data do Plantão deve ser a mesma do registro principal.")
 
-        if cleaned_data.get('dorme_fora'):
-            dt_dorme = cleaned_data.get('data_dorme_fora')
-            if not dt_dorme:
-                self.add_error(None, "Selecione a Data do Dorme-Fora no calendário.")
-            elif dt_dorme != data_apontamento:
-                self.add_error(None, "A Data do Dorme-Fora deve ser a mesma do registro principal.")
+        if cleaned_data.get('registrar_multiplas_obras'):
+            extras = cleaned_data.get('obras_extras_list')
+            if not extras or len(str(extras).strip()) == 0:
+                self.add_error('registrar_multiplas_obras', "Erro de processamento: Nenhuma obra adicional foi detectada para o rateio.")
                 
         return cleaned_data
-    

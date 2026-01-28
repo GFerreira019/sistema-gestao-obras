@@ -3,71 +3,92 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q, Count
+from django.db import IntegrityError, transaction
 from django.utils import timezone
-from datetime import timedelta, datetime, date
-import calendar
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
-import json
+from datetime import timedelta, datetime, date, time
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.forms.models import model_to_dict
+from openpyxl.styles import Font, PatternFill, Alignment
+import calendar
+import openpyxl
+import json
+import uuid
+
 
 # Imports locais
 from .forms import ApontamentoForm
-from .models import Apontamento, Projeto, Colaborador, Setor, Veiculo, CodigoCliente, CentroCusto
+from .models import Apontamento, Projeto, Colaborador, Setor, Veiculo, CodigoCliente, CentroCusto, ApontamentoHistorico
 
 # ==============================================================================
-# 1. LÓGICA DE CONTROLE DE ACESSO (RBAC)
+# 1. LÓGICA DE CONTROLE DE ACESSO (RBAC & HELPERS)
 # ==============================================================================
-
-def is_user_in_group(user, group_name):
-    """Verifica se o usuário pertence a um grupo específico."""
-    return user.groups.filter(name=group_name).exists()
 
 def is_owner(user):
-    """Verifica se é superusuário (Auditores/TI)."""
     return user.is_superuser
 
-def is_admin_or_gestor(user):
-    """Verifica permissões de gestão."""
-    return is_user_in_group(user, 'GESTOR') or is_user_in_group(user, 'ADMINISTRATIVO')
+def check_group(user, group_name):
+    return user.groups.filter(name=group_name).exists()
 
-def is_operacional(user):
-    """Verifica se é usuário padrão (Colaborador)."""
-    return user.is_authenticated and not is_owner(user) and not is_admin_or_gestor(user)
+def is_coordenador(user):
+    return check_group(user, 'COORDENADOR') or is_owner(user)
+
+def is_administrativo(user):
+    return check_group(user, 'ADMINISTRATIVO') or is_owner(user)
+
+def is_gerente(user):
+    return check_group(user, 'GESTOR') or is_owner(user)
+
+def pode_fazer_rateio(user):
+    """Regra: Coordenador, Administrativo e Owner podem ratear."""
+    return is_coordenador(user) or is_administrativo(user) or is_owner(user)
+
+def distribuir_horarios_com_gap(inicio, fim, qtd_obras):
+    """Calcula horários sequenciais SEM INTERVALOS (Gap Zero)."""
+    if qtd_obras <= 0: return []
+    d = date(2000, 1, 1)
+    dt_ini = datetime.combine(d, inicio)
+    dt_fim = datetime.combine(d, fim)
+    if dt_fim < dt_ini: dt_fim += timedelta(days=1)
+    total_minutos = int((dt_fim - dt_ini).total_seconds() / 60)
+    minutos_base = total_minutos // qtd_obras
+    resto = total_minutos % qtd_obras
+    intervalos = []
+    tempo_atual = dt_ini
+    for i in range(qtd_obras):
+        duracao = minutos_base + (1 if i < resto else 0)
+        if duracao < 1 and total_minutos > 0: duracao = 1 
+        fim_obra = tempo_atual + timedelta(minutes=duracao)
+        intervalos.append((tempo_atual.time(), fim_obra.time()))
+        tempo_atual = fim_obra
+    return intervalos
 
 @login_required
 def home_redirect_view(request):
-    """Redireciona para a home correta."""
-    return redirect('home_menu')
+    return redirect('produtividade:home_menu')
 
 @login_required
 def home_view(request):
-    """Renderiza o menu principal."""
-    return render(request, 'produtividade/home.html')
+    is_gestor = is_gerente(request.user)
+
+    context = {
+        'is_gestor': is_gestor
+    }
+    return render(request, 'produtividade/home.html', context)
 
 @login_required
 def configuracoes_view(request):
-    """Tela de configurações do usuário."""
     context = {
-        'titulo': 'Configurações do Usuário',
-        'change_password_url': '/accounts/password_change/',
-    }
+        'titulo': 'Configurações do Usuário', 
+        'change_password_url': '/accounts/password_change/' }
     return render(request, 'produtividade/configuracoes.html', context)
 
 # ==============================================================================
-# 2. VIEWS DE OPERAÇÃO (CRIAR E LISTAR)
+# 2. VIEWS DE OPERAÇÃO (CRIAR)
 # ==============================================================================
 
 @login_required
 def apontamento_atividade_view(request):
-    """
-    View principal para CRIAÇÃO de novos apontamentos.
-    Gerencia:
-    - Salvamento do Form principal.
-    - Lógica de Veículo (Banco ou Manual).
-    - Lógica de Auxiliares (Principal + Extras).
-    """
     user_kwargs = {'user': request.user}
     
     if request.method == 'POST':
@@ -75,50 +96,120 @@ def apontamento_atividade_view(request):
         if form.is_valid():
             apontamento = form.save(commit=False)
             apontamento.registrado_por = request.user
+            apontamento.status_aprovacao = 'EM_ANALISE'
+            apontamento.contagem_edicao = 0
             
-            # 1. Lógica de Auxiliar Principal
+            # --- Tratamento de Auxiliar/Veículo (Igual ao anterior) ---
             if form.cleaned_data.get('registrar_auxiliar'):
                 apontamento.auxiliar = form.cleaned_data.get('auxiliar_selecao')
             else:
                 apontamento.auxiliar = None
 
-            # 2. Lógica de Veículo (Híbrida)
             if form.cleaned_data.get('registrar_veiculo'):
                 selection = form.cleaned_data.get('veiculo_selecao')
                 if selection == 'OUTRO':
-                    # Veículo Manual
                     apontamento.veiculo = None
                     apontamento.veiculo_manual_modelo = form.cleaned_data.get('veiculo_manual_modelo')
                     apontamento.veiculo_manual_placa = form.cleaned_data.get('veiculo_manual_placa')
                 else:
-                    # Veículo do Banco
                     try:
                         apontamento.veiculo = Veiculo.objects.get(pk=selection)
-                        apontamento.veiculo_manual_modelo = None
-                        apontamento.veiculo_manual_placa = None
-                    except Veiculo.DoesNotExist:
-                        apontamento.veiculo = None
+                        apontamento.veiculo_manual_modelo = None; apontamento.veiculo_manual_placa = None
+                    except Veiculo.DoesNotExist: apontamento.veiculo = None
             else:
-                # Sem veículo
-                apontamento.veiculo = None
-                apontamento.veiculo_manual_modelo = None
-                apontamento.veiculo_manual_placa = None
+                apontamento.veiculo = None; apontamento.veiculo_manual_modelo = None; apontamento.veiculo_manual_placa = None
 
-            apontamento.save() 
+            # --- RATEIO ---
+            extras_obras_str = form.cleaned_data.get('obras_extras_list')
+            user_can_rateio = pode_fazer_rateio(request.user)
+            
+            is_rateio = user_can_rateio and (form.cleaned_data.get('registrar_multiplas_obras') or extras_obras_str)
 
-            # 3. Salva os Extras no Many-To-Many (Necessário após o save do objeto)
-            if form.cleaned_data.get('registrar_auxiliar'):
-                ids_string = form.cleaned_data.get('auxiliares_extras_list')
-                if ids_string:
-                    ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
-                    apontamento.auxiliares_extras.set(ids_list)
+            if is_rateio:
+                agrupamento_uid = str(uuid.uuid4()) 
+
+                principal_str = ""
+                if apontamento.projeto: principal_str = f"P_{apontamento.projeto.id}"
+                elif apontamento.codigo_cliente: principal_str = f"C_{apontamento.codigo_cliente.id}"
+                
+                lista_extras = [x.strip() for x in extras_obras_str.split(',') if x.strip()] if extras_obras_str else []
+                todas_obras_raw = ([principal_str] + lista_extras) if principal_str else lista_extras
+
+                if not todas_obras_raw:
+                    apontamento.status_aprovacao = 'EM_ANALISE'
+                    apontamento.save()
+                    messages.success(request, "Registro salvo (único).")
+                    return redirect('produtividade:novo_apontamento')
+
+                horarios = distribuir_horarios_com_gap(apontamento.hora_inicio, apontamento.hora_termino, len(todas_obras_raw))
+                aux_extras_str = form.cleaned_data.get('auxiliares_extras_list')
+                ids_aux_list = [int(x) for x in aux_extras_str.split(',') if x.strip().isdigit()] if aux_extras_str else []
+                contagem_sucesso = 0
+
+                for idx, item_hibrido in enumerate(todas_obras_raw):
+                    try:
+                        if '_' not in item_hibrido: continue
+                        prefixo, obj_id_str = item_hibrido.split('_')
+                        obj_id = int(obj_id_str)
+
+                        novo_registro = Apontamento()
+                        novo_registro.colaborador = apontamento.colaborador
+                        novo_registro.data_apontamento = apontamento.data_apontamento
+                        novo_registro.local_execucao = apontamento.local_execucao
+                        novo_registro.veiculo = apontamento.veiculo
+                        novo_registro.veiculo_manual_modelo = apontamento.veiculo_manual_modelo
+                        novo_registro.veiculo_manual_placa = apontamento.veiculo_manual_placa
+                        novo_registro.auxiliar = apontamento.auxiliar
+                        novo_registro.ocorrencias = apontamento.ocorrencias
+                        novo_registro.em_plantao = apontamento.em_plantao
+                        novo_registro.data_plantao = apontamento.data_plantao
+                        novo_registro.dorme_fora = apontamento.dorme_fora
+                        novo_registro.data_dorme_fora = apontamento.data_dorme_fora
+                        novo_registro.latitude = apontamento.latitude
+                        novo_registro.longitude = apontamento.longitude
+                        novo_registro.registrado_por = request.user
+                        novo_registro.status_aprovacao = 'EM_ANALISE'
+                        novo_registro.contagem_edicao = 0
+                        novo_registro.id_agrupamento = agrupamento_uid 
+
+                        if idx < len(horarios):
+                            novo_registro.hora_inicio = horarios[idx][0]
+                            novo_registro.hora_termino = horarios[idx][1]
+                        
+                        if prefixo == 'P':
+                            if not Projeto.objects.filter(pk=obj_id).exists(): continue
+                            novo_registro.projeto_id = obj_id; novo_registro.codigo_cliente = None
+                        elif prefixo == 'C':
+                            if not CodigoCliente.objects.filter(pk=obj_id).exists(): continue
+                            novo_registro.codigo_cliente_id = obj_id; novo_registro.projeto = None
+                        
+                        novo_registro.save()
+                        contagem_sucesso += 1
+                        if form.cleaned_data.get('registrar_auxiliar') and ids_aux_list:
+                            novo_registro.auxiliares_extras.set(ids_aux_list)
+                    except Exception as e:
+                        print(f"Erro rateio: {e}")
+                        continue
+                
+                if contagem_sucesso > 0: messages.success(request, f"Rateio realizado: {contagem_sucesso} registros.")
+                else: messages.error(request, "Erro ao salvar rateio.")
+                return redirect('produtividade:novo_apontamento')
+
+            else:
+                apontamento.status_aprovacao = 'EM_ANALISE'
+                apontamento.save() 
+                if form.cleaned_data.get('registrar_auxiliar'):
+                    ids_string = form.cleaned_data.get('auxiliares_extras_list')
+                    if ids_string:
+                        ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
+                        apontamento.auxiliares_extras.set(ids_list)
+                    else:
+                        apontamento.auxiliares_extras.clear()
                 else:
                     apontamento.auxiliares_extras.clear()
-            else:
-                apontamento.auxiliares_extras.clear()
 
-            messages.success(request, f"Registro de {apontamento.colaborador} salvo com sucesso!")
-            return redirect('novo_apontamento')
+                messages.success(request, f"Registro de {apontamento.colaborador} salvo com sucesso!")
+                return redirect('produtividade:novo_apontamento')
     else:
         now_local = timezone.localtime(timezone.now())
         initial_data = {
@@ -135,6 +226,10 @@ def apontamento_atividade_view(request):
     }
     return render(request, 'produtividade/apontamento_form.html', context)
 
+
+# ==============================================================================
+# 3. EDIÇÃO E HISTÓRICO DE APONTAMENTOS
+# ==============================================================================
 
 @login_required
 def historico_apontamentos_view(request):
@@ -177,17 +272,13 @@ def historico_apontamentos_view(request):
 
     queryset = queryset.filter(data_apontamento__gte=start_date, data_apontamento__lte=end_date)
 
-    # --- Regras de Visualização (Quem vê o quê) ---
-    if is_owner(user):
-        pass # Owner vê tudo
-    else:
+    # --- Regras de Visualização ---
+    if not is_owner(user) and not is_gerente(user):
         try:
-            meu_perfil_colaborador = Colaborador.objects.get(user_account=user)
-            # Vê registros feitos POR MIM ou ONDE EU SOU o colaborador
-            queryset = queryset.filter(
-                Q(registrado_por=user) | Q(colaborador=meu_perfil_colaborador)
-            )
-        except Colaborador.DoesNotExist:
+            colab = Colaborador.objects.get(user_account=user)
+            # Operacional vê o seu. Admin vê os do setor. (Implementar lógica Admin aqui se quiser refinar)
+            queryset = queryset.filter(Q(registrado_por=user) | Q(colaborador=colab))
+        except:
             queryset = queryset.filter(registrado_por=user)
         
         # Limita histórico para não-admins (segurança/performance)
@@ -197,12 +288,14 @@ def historico_apontamentos_view(request):
         queryset = queryset.filter(data_apontamento__gte=limit_date)
 
     # Processamento para exibição
-    apontamentos_db = queryset.order_by('-data_apontamento', '-id')
     historico_lista = []
 
-    for item in apontamentos_db:
+    total_segundos_geral = 0
+
+    for item in queryset:
         # Formatação inteligente do Local
         if item.local_execucao == 'INT':
+            local_tipo_display = "DENTRO DA OBRA"
             if item.projeto:
                 p_cod = item.projeto.codigo if item.projeto.codigo else ""
                 local_ref = f"{p_cod} - {item.projeto.nome}" if p_cod else f"{item.projeto.nome}"
@@ -211,7 +304,8 @@ def historico_apontamentos_view(request):
             else:
                 local_ref = "Obra/Cliente não informado"
         else:
-            local_ref = item.centro_custo.nome if item.centro_custo else "Externo"
+            local_tipo_display = "FORA DO SETOR"
+            local_ref = item.centro_custo.nome if item.centro_custo else "Atividade Externa"
             if item.projeto:
                 local_ref += f" (Obra: {item.projeto.codigo})"
             elif item.codigo_cliente:
@@ -228,25 +322,42 @@ def historico_apontamentos_view(request):
         reg_user = item.registrado_por
         user_display = f"{reg_user.first_name} {reg_user.last_name}" if reg_user and reg_user.first_name else (reg_user.username if reg_user else "Sistema")
 
+        # Horas totais do apontamento
+        duracao_formatada = item.duracao_total_str
+
         base_dict = {
             'id': item.id,
             'data': item.data_apontamento,
             'local_ref': local_ref,
+            'local_tipo': local_tipo_display,
             'inicio': item.hora_inicio,
             'termino': item.hora_termino,
+            'duracao': duracao_formatada,
             'local_tipo': item.get_local_execucao_display(),
             'obs': item.ocorrencias,
             'registrado_em': item.data_registro,
             'registrado_por_str': user_display,
+            'registrado_por_id': item.registrado_por.id if item.registrado_por else None,
             'em_plantao': item.em_plantao,
             'dorme_fora': item.dorme_fora,
             'motivo_ajuste': item.motivo_ajuste,
-            'status_ajuste': item.status_ajuste, 
+            'status_ajuste': item.status_ajuste,
+            'status_aprovacao': item.status_aprovacao,
+            'contagem_edicao': item.contagem_edicao,
+            'pode_editar': (item.contagem_edicao < 1) or is_owner(user),
+            'motivo_rejeicao': item.motivo_rejeicao,
+            'latitude': item.latitude,
+            'longitude': item.longitude,
         }
 
         # Adiciona linha principal (Colaborador)
         row_main = base_dict.copy()
-        row_main.update({'nome': item.colaborador.nome_completo, 'cargo': item.colaborador.cargo, 'veiculo': veiculo_display, 'is_auxiliar': False})
+        row_main.update({
+            'nome': item.colaborador.nome_completo, 
+            'cargo': item.colaborador.cargo, 
+            'veiculo': veiculo_display, 
+            'is_auxiliar': False
+        })
         historico_lista.append(row_main)
 
         # Adiciona linhas de Auxiliares (se houver) para visualização expandida
@@ -258,24 +369,110 @@ def historico_apontamentos_view(request):
 
         for aux in auxiliares_a_exibir:
             row_aux = base_dict.copy()
-            row_aux.update({'nome': aux.nome_completo, 'cargo': aux.cargo, 'veiculo': "", 'is_auxiliar': True})
+            row_aux.update({
+                'nome': aux.nome_completo,
+                'cargo': aux.cargo,
+                'veiculo': "",
+                'is_auxiliar': True
+            })
             historico_lista.append(row_aux)
+
+    total_horas_periodo = f"{total_segundos_geral // 3600:02d}:{(total_segundos_geral % 3600) // 60:02d}"
 
     context = {
         'titulo': "Histórico",
         'apontamentos_lista': historico_lista,
         'show_user_column': is_owner(user), 
         'is_owner': is_owner(user),
+        'is_gestor': is_gerente(user),
         'current_period': current_period,
         'start_date_val': start_date.strftime('%Y-%m-%d'),
         'end_date_val': end_date.strftime('%Y-%m-%d'),
+        'total_horas_periodo': total_horas_periodo,
     }
     return render(request, 'produtividade/historico_apontamentos.html', context)
 
+@login_required
+def editar_apontamento_view(request, pk):
+    """
+    Edição com controle de versão e limite de 1x.
+    """
+    apontamento = get_object_or_404(Apontamento, pk=pk)
+    user = request.user
 
-# ==============================================================================
-# 3. GESTÃO DE AJUSTES E EDIÇÃO (ADMINISTRATIVO)
-# ==============================================================================
+    if not is_owner(user) and apontamento.registrado_por != user:
+        messages.error(request, "Acesso Negado: Você só pode editar seus próprios apontamentos.")
+        return redirect('produtividade:historico_apontamentos')
+
+    if apontamento.contagem_edicao >= 1 and not is_owner(user):
+        messages.error(request, "Limite de edição atingido. Para correções, utilize a opção 'Solicitar Ajuste'.")
+        return redirect('produtividade:historico_apontamentos')
+
+    user_kwargs = {'user': request.user, 'instance': apontamento}
+
+    if request.method == 'POST':
+        dados_originais = model_to_dict(apontamento, exclude=['auxiliares_extras', 'user_account'])
+        
+        for k, v in dados_originais.items():
+            if isinstance(v, (datetime, date, time)): 
+                dados_originais[k] = v.isoformat()
+            elif isinstance(v, timedelta): 
+                dados_originais[k] = str(v)
+
+        form = ApontamentoForm(request.POST, **user_kwargs)
+        if form.is_valid():
+            with transaction.atomic():
+                ApontamentoHistorico.objects.create(
+                    apontamento_original=apontamento,
+                    dados_snapshot=dados_originais,
+                    editado_por=user,
+                    numero_edicao=apontamento.contagem_edicao + 1
+                )
+
+                obj = form.save(commit=False)
+                obj.contagem_edicao += 1
+                obj.status_aprovacao = 'EM_ANALISE'
+                obj.motivo_rejeicao = None
+                
+                if not form.cleaned_data.get('registrar_auxiliar'): obj.auxiliar = None
+                if not form.cleaned_data.get('registrar_veiculo'):
+                    obj.veiculo = None; obj.veiculo_manual_modelo = None; obj.veiculo_manual_placa = None
+                
+                obj.save()
+
+                if form.cleaned_data.get('registrar_auxiliar'):
+                    ids_string = form.cleaned_data.get('auxiliares_extras_list')
+                    if ids_string:
+                        ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
+                        obj.auxiliares_extras.set(ids_list)
+                    else: obj.auxiliares_extras.clear()
+                else: obj.auxiliares_extras.clear()
+
+            messages.success(request, "Apontamento editado com sucesso! (Histórico salvo)")
+            return redirect('produtividade:historico_apontamentos')
+    else:
+        initial_data = {}
+        if apontamento.veiculo:
+            initial_data['registrar_veiculo'] = True
+            initial_data['veiculo_selecao'] = apontamento.veiculo.id
+        elif apontamento.veiculo_manual_placa:
+            initial_data['registrar_veiculo'] = True
+            initial_data['veiculo_selecao'] = 'OUTRO'
+        if apontamento.auxiliar:
+            initial_data['registrar_auxiliar'] = True
+            ids_list = list(apontamento.auxiliares_extras.values_list('id', flat=True))
+            initial_data['auxiliares_extras_list'] = ",".join(map(str, ids_list))
+
+        form = ApontamentoForm(initial=initial_data, **user_kwargs)
+
+    context = {
+        'form': form,
+        'titulo': 'Editar Apontamento',
+        'subtitulo': f'Editando registro (Versão {apontamento.contagem_edicao + 1})',
+        'is_editing': True,
+        'apontamento_id': pk
+    }
+    return render(request, 'produtividade/apontamento_form.html', context)
 
 @login_required
 def solicitar_ajuste_view(request, pk):
@@ -296,113 +493,20 @@ def solicitar_ajuste_view(request, pk):
 
     if not (is_autor or is_colaborador or request.user.is_superuser):
          messages.error(request, "Você não tem permissão para solicitar ajuste neste registro.")
-         return redirect('historico_apontamentos')
+         return redirect('produtividade:historico_apontamentos')
 
     if request.method == 'POST':
         motivo = request.POST.get('motivo_texto')
         if motivo:
             apontamento.motivo_ajuste = motivo
-            apontamento.status_ajuste = 'PENDENTE'
+            apontamento.status_aprovacao = 'SOLICITACAO_AJUSTE' 
+            apontamento.status_ajuste = 'PENDENTE' 
             apontamento.save()
             messages.success(request, "Solicitação de ajuste enviada para a administração.")
         else:
             messages.warning(request, "É necessário descrever o motivo do ajuste.")
             
-    return redirect('historico_apontamentos')
-
-
-@login_required
-@user_passes_test(is_owner)
-def editar_apontamento_view(request, pk):
-    """
-    Edição completa do apontamento (Acesso Admin).
-    Se o apontamento tinha uma solicitação de ajuste pendente, ela é automaticamente aprovada ao salvar.
-    """
-    apontamento = get_object_or_404(Apontamento, pk=pk)
-    user_kwargs = {'user': request.user, 'instance': apontamento}
-
-    if request.method == 'POST':
-        form = ApontamentoForm(request.POST, **user_kwargs)
-        if form.is_valid():
-            obj = form.save(commit=False)
-            
-            # 1. Limpeza de Auxiliares
-            if not form.cleaned_data.get('registrar_auxiliar'):
-                obj.auxiliar = None
-
-            # 2. Tratamento de Veículo
-            if form.cleaned_data.get('registrar_veiculo'):
-                selection = form.cleaned_data.get('veiculo_selecao')
-                if selection == 'OUTRO':
-                    obj.veiculo = None
-                    obj.veiculo_manual_modelo = form.cleaned_data.get('veiculo_manual_modelo')
-                    obj.veiculo_manual_placa = form.cleaned_data.get('veiculo_manual_placa')
-                else:
-                    try:
-                        obj.veiculo = Veiculo.objects.get(pk=selection)
-                        obj.veiculo_manual_modelo = None
-                        obj.veiculo_manual_placa = None
-                    except Veiculo.DoesNotExist:
-                        obj.veiculo = None
-            else:
-                obj.veiculo = None
-                obj.veiculo_manual_modelo = None
-                obj.veiculo_manual_placa = None
-
-            # 3. Aprovação Automática de Ajuste (se houver pendência)
-            if obj.status_ajuste == 'PENDENTE':
-                obj.status_ajuste = 'APROVADO'
-            
-            obj.save()
-
-            # 4. Atualização do M2M Auxiliares
-            if form.cleaned_data.get('registrar_auxiliar'):
-                ids_string = form.cleaned_data.get('auxiliares_extras_list')
-                if ids_string:
-                    ids_list = [int(x) for x in ids_string.split(',') if x.strip().isdigit()]
-                    obj.auxiliares_extras.set(ids_list)
-                else:
-                    obj.auxiliares_extras.clear()
-            else:
-                obj.auxiliares_extras.clear()
-
-            messages.success(request, "Apontamento atualizado com sucesso!")
-            return redirect('historico_apontamentos')
-    else:
-        # Preenchimento inicial do formulário para Edição
-        initial_data = {}
-        if apontamento.data_apontamento:
-            initial_data['data_apontamento'] = apontamento.data_apontamento.strftime('%d/%m/%Y')
-        if apontamento.data_dorme_fora:
-            initial_data['data_dorme_fora'] = apontamento.data_dorme_fora.strftime('%d/%m/%Y')
-
-        if apontamento.veiculo:
-            initial_data['registrar_veiculo'] = True
-            initial_data['veiculo_selecao'] = apontamento.veiculo.id
-        elif apontamento.veiculo_manual_placa:
-            initial_data['registrar_veiculo'] = True
-            initial_data['veiculo_selecao'] = 'OUTRO'
-            initial_data['veiculo_manual_modelo'] = apontamento.veiculo_manual_modelo
-            initial_data['veiculo_manual_placa'] = apontamento.veiculo_manual_placa
-
-        if apontamento.auxiliar:
-            initial_data['registrar_auxiliar'] = True
-            initial_data['auxiliar_selecao'] = apontamento.auxiliar
-            
-            # Recupera IDs para o campo hidden
-            ids_list = list(apontamento.auxiliares_extras.values_list('id', flat=True))
-            initial_data['auxiliares_extras_list'] = ",".join(map(str, ids_list))
-        
-        form = ApontamentoForm(initial=initial_data, **user_kwargs)
-
-    context = {
-        'form': form,
-        'titulo': 'Editar Apontamento',
-        'subtitulo': f'Editando registro #{apontamento.id} de {apontamento.colaborador}',
-        'is_editing': True,
-        'apontamento_id': pk
-    }
-    return render(request, 'produtividade/apontamento_form.html', context)
+    return redirect('produtividade:historico_apontamentos')
 
 
 @login_required
@@ -412,7 +516,7 @@ def excluir_apontamento_view(request, pk):
     apontamento = get_object_or_404(Apontamento, pk=pk)
     apontamento.delete()
     messages.success(request, "Apontamento excluído com sucesso.")
-    return redirect('historico_apontamentos')
+    return redirect('produtividade:historico_apontamentos')
 
 
 @login_required
@@ -423,7 +527,7 @@ def aprovar_ajuste_view(request, pk):
     apontamento.status_ajuste = 'APROVADO'
     apontamento.save()
     messages.success(request, "Solicitação marcada como APROVADA.")
-    return redirect('historico_apontamentos')
+    return redirect('produtividade:historico_apontamentos')
 
 
 # ==============================================================================
@@ -479,17 +583,20 @@ def get_calendar_status_ajax(request):
 
     queryset = Apontamento.objects.filter(
         colaborador=colaborador, data_apontamento__gte=start_date, data_apontamento__lte=end_date
-    ).values('data_apontamento', 'dorme_fora')
+    ).values('data_apontamento', 'dorme_fora', 'em_plantao')
     
     # Mapeia dias com atividades
     dias_info = {}
     for entry in queryset:
         d_str = entry['data_apontamento'].strftime('%Y-%m-%d')
         if d_str not in dias_info:
-            dias_info[d_str] = entry['dorme_fora']
+            dias_info[d_str] = {
+                'dorme_fora': entry['dorme_fora'],
+                'em_plantao': entry['em_plantao']
+            }
         else:
-            if entry['dorme_fora']:
-                dias_info[d_str] = True
+            if entry['dorme_fora']: dias_info[d_str]['dorme_fora'] = True
+            if entry['em_plantao']: dias_info[d_str]['em_plantao'] = True
     
     days_data = []
     today = timezone.now().date()
@@ -500,10 +607,12 @@ def get_calendar_status_ajax(request):
         
         status = 'missing'
         has_dorme_fora = False
+        has_em_plantao = False
 
         if date_str in dias_info:
             status = 'filled'
-            has_dorme_fora = dias_info[date_str]
+            has_dorme_fora = dias_info[date_str]['dorme_fora']
+            has_em_plantao = dias_info[date_str]['em_plantao']
         elif current_date > today:
             status = 'future'
         
@@ -511,7 +620,8 @@ def get_calendar_status_ajax(request):
             'date': date_str, 
             'day': day, 
             'status': status,
-            'has_dorme_fora': has_dorme_fora
+            'has_dorme_fora': has_dorme_fora,
+            'has_em_plantao': has_em_plantao
         })
 
     return JsonResponse({'is_owner': False, 'days': days_data})
@@ -625,7 +735,7 @@ def exportar_relatorio_excel(request):
         "Data", "Dia Semana", "Colaborador", "Cargo", "Tipo", 
         "Local (Obra/Setor)", "Código de Obra", "Código Cliente", 
         "Veículo", "Placa", "Hora Início", "Hora Fim", "Total Horas", 
-        "Plantão", "Dorme Fora", "Observações", "Registrado Por"
+        "Plantão", "Dorme Fora", "Observações", "Registrado Por", 'Latitude', 'Longitude'
     ]
     ws.append(headers)
 
@@ -665,9 +775,9 @@ def exportar_relatorio_excel(request):
         local_nome = ""
         col_codigo_obra = ""
         col_codigo_cliente = ""
-        tipo = "OBRA" if item.local_execucao == 'INT' else "EXTERNO"
 
         if item.local_execucao == 'INT':
+            tipo = "OBRA"
             if item.projeto:
                 local_nome = item.projeto.nome
                 col_codigo_obra = item.projeto.codigo
@@ -675,7 +785,8 @@ def exportar_relatorio_excel(request):
                 local_nome = item.codigo_cliente.nome
                 col_codigo_cliente = item.codigo_cliente.codigo
         else:
-            local_nome = item.centro_custo.nome if item.centro_custo else "Externo"
+            tipo = "FORA DO SETOR"
+            local_nome = item.centro_custo.nome if item.centro_custo else "Atividade Externa"
             if item.projeto: col_codigo_obra = item.projeto.codigo
             elif item.codigo_cliente: col_codigo_cliente = item.codigo_cliente.codigo
 
@@ -708,7 +819,8 @@ def exportar_relatorio_excel(request):
             tipo, local_nome, col_codigo_obra, col_codigo_cliente, 
             veiculo_nome_modelo, veiculo_placa_only, item.hora_inicio, item.hora_termino, 
             duracao_str, plantao_str, dorme_fora_str, 
-            item.ocorrencias, reg_por
+            item.ocorrencias, reg_por,
+            item.latitude, item.longitude
         ]
         ws.append(row_principal)
 
@@ -776,6 +888,7 @@ def api_exportar_json(request):
         codigo_cliente = None
         
         if item.local_execucao == 'INT':
+            tipo_str = "OBRA"
             if item.projeto:
                 local_nome = item.projeto.nome
                 codigo_obra = item.projeto.codigo
@@ -783,7 +896,8 @@ def api_exportar_json(request):
                 local_nome = item.codigo_cliente.nome
                 codigo_cliente = item.codigo_cliente.codigo
         else:
-            local_nome = item.centro_custo.nome if item.centro_custo else "Externo"
+            tipo_str = "FORA DO SETOR"
+            local_nome = item.centro_custo.nome if item.centro_custo else "Atividade Externa"
             if item.projeto: codigo_obra = item.projeto.codigo
             elif item.codigo_cliente: codigo_cliente = item.codigo_cliente.codigo
 
@@ -804,7 +918,7 @@ def api_exportar_json(request):
         base_obj = {
             'data': fmt_data(item.data_apontamento),
             'dia_semana': item.data_apontamento.weekday(), 
-            'tipo': 'OBRA' if item.local_execucao == 'INT' else 'EXTERNO',
+            'tipo': tipo_str,
             'local': local_nome,
             'codigo_obra': codigo_obra,
             'codigo_cliente': codigo_cliente,
@@ -849,3 +963,215 @@ def api_exportar_json(request):
             dados_saida.append(row_aux)
 
     return JsonResponse(dados_saida, safe=False)
+
+# ==============================================================================
+# 6. APROVAÇÃO DE AJUSTES (GERENTE)
+# ==============================================================================
+
+@login_required
+@user_passes_test(is_gerente)
+def aprovacao_dashboard_view(request):
+    """
+    Lista de pendências para o Gerente.
+    Filtra apenas colaboradores dos setores que o gerente administra.
+    """
+    try:
+        gerente = Colaborador.objects.get(user_account=request.user)
+        meus_setores = gerente.setores_gerenciados.all()
+    except Colaborador.DoesNotExist:
+        messages.error(request, "Seu usuário não está vinculado a um cadastro de Colaborador/Gestor.")
+        return redirect('produtividade:home_menu')
+
+    pendentes = Apontamento.objects.filter(
+        status_aprovacao='EM_ANALISE',
+        colaborador__setor__in=meus_setores
+    ).exclude(colaborador=gerente).select_related('colaborador', 'projeto', 'centro_custo').order_by('data_apontamento')
+
+    context = {
+        'pendentes': pendentes,
+        'titulo': 'Central de Aprovações'
+    }
+    return render(request, 'produtividade/aprovacao_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_gerente)
+def analise_apontamento_view(request, pk):
+    """
+    Tela detalhada para comparar a versão anterior com a atual (Diff Completo).
+    """
+    apontamento = get_object_or_404(Apontamento, pk=pk)
+    
+    # --- HELPER DEFINIDO NO INÍCIO (CORREÇÃO) ---
+    def item_time_str(t): 
+        return t.strftime('%H:%M') if t else ""
+
+    # Pega a ÚLTIMA versão do histórico (a imediatamente anterior à atual)
+    historico = ApontamentoHistorico.objects.filter(apontamento_original=apontamento).order_by('-numero_edicao').first()
+    
+    diff_data = []
+    tem_alteracao = False
+
+    if historico:
+        dados_antigos = historico.dados_snapshot
+        
+        # --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
+        def format_bool(val):
+            return "SIM" if val else "NÃO"
+
+        def format_none(val):
+            return val if val else "-"
+
+        def get_fk_name(ModelClass, pk):
+            if not pk: return "-"
+            try:
+                return str(ModelClass.objects.get(pk=pk))
+            except:
+                return f"(ID: {pk} removido)"
+
+        # --- 1. COMPARAÇÃO DE HORÁRIOS ---
+        # Formata strings de hora para comparar (snapshot vem como string ISO ou HH:MM:SS)
+        h_ini_old = str(dados_antigos.get('hora_inicio', ''))[:5]
+        h_ini_new = item_time_str(apontamento.hora_inicio) # Agora funciona!
+        if h_ini_old != h_ini_new:
+            diff_data.append({'campo': 'Hora Início', 'antes': h_ini_old, 'depois': h_ini_new, 'icon': 'clock'})
+
+        h_fim_old = str(dados_antigos.get('hora_termino', ''))[:5]
+        h_fim_new = item_time_str(apontamento.hora_termino)
+        if h_fim_old != h_fim_new:
+            diff_data.append({'campo': 'Hora Término', 'antes': h_fim_old, 'depois': h_fim_new, 'icon': 'clock'})
+
+        # --- 2. COMPARAÇÃO DE LOCAL/PROJETO ---
+        local_old = dados_antigos.get('local_execucao')
+        local_new = apontamento.local_execucao
+        if local_old != local_new:
+            mapa = {'INT': 'DENTRO DA OBRA', 'EXT': 'FORA DA OBRA'}
+            diff_data.append({'campo': 'Local', 'antes': mapa.get(local_old, local_old), 'depois': mapa.get(local_new, local_new), 'icon': 'map'})
+
+        # Comparação de Projeto (ID vs ID)
+        proj_old_id = dados_antigos.get('projeto')
+        proj_new_id = apontamento.projeto.id if apontamento.projeto else None
+        if proj_old_id != proj_new_id:
+            nome_old = get_fk_name(Projeto, proj_old_id)
+            nome_new = str(apontamento.projeto) if apontamento.projeto else "-"
+            diff_data.append({'campo': 'Projeto/Obra', 'antes': nome_old, 'depois': nome_new, 'icon': 'briefcase'})
+
+        # Comparação de Cliente (ID vs ID)
+        cli_old_id = dados_antigos.get('codigo_cliente')
+        cli_new_id = apontamento.codigo_cliente.id if apontamento.codigo_cliente else None
+        if cli_old_id != cli_new_id:
+            nome_old = get_fk_name(CodigoCliente, cli_old_id)
+            nome_new = str(apontamento.codigo_cliente) if apontamento.codigo_cliente else "-"
+            diff_data.append({'campo': 'Cliente', 'antes': nome_old, 'depois': nome_new, 'icon': 'user'})
+
+        # --- 3. COMPARAÇÃO DE VEÍCULO (Complexo: ID vs Manual) ---
+        # Veículo Cadastrado
+        veic_old_id = dados_antigos.get('veiculo')
+        veic_new_id = apontamento.veiculo.id if apontamento.veiculo else None
+        
+        # Veículo Manual
+        veic_man_placa_old = dados_antigos.get('veiculo_manual_placa')
+        veic_man_placa_new = apontamento.veiculo_manual_placa
+
+        # Lógica: Se mudou ID ou mudou Texto Manual
+        if veic_old_id != veic_new_id:
+            nome_old = get_fk_name(Veiculo, veic_old_id)
+            nome_new = str(apontamento.veiculo) if apontamento.veiculo else "-"
+            diff_data.append({'campo': 'Veículo (Frota)', 'antes': nome_old, 'depois': nome_new, 'icon': 'truck'})
+        
+        if str(veic_man_placa_old) != str(veic_man_placa_new):
+             diff_data.append({'campo': 'Veículo (Externo/Placa)', 'antes': format_none(veic_man_placa_old), 'depois': format_none(veic_man_placa_new), 'icon': 'truck'})
+
+        # --- 4. COMPARAÇÃO DE ADICIONAIS (Booleans) ---
+        if dados_antigos.get('em_plantao') != apontamento.em_plantao:
+            diff_data.append({
+                'campo': 'Em Plantão?', 
+                'antes': format_bool(dados_antigos.get('em_plantao')), 
+                'depois': format_bool(apontamento.em_plantao),
+                'icon': 'siren'
+            })
+
+        if dados_antigos.get('dorme_fora') != apontamento.dorme_fora:
+            diff_data.append({
+                'campo': 'Dorme Fora?', 
+                'antes': format_bool(dados_antigos.get('dorme_fora')), 
+                'depois': format_bool(apontamento.dorme_fora),
+                'icon': 'moon'
+            })
+
+        # --- 5. COMPARAÇÃO DE TEXTOS ---
+        obs_old = str(dados_antigos.get('ocorrencias', '') or '').strip()
+        obs_new = str(apontamento.ocorrencias or '').strip()
+        if obs_old != obs_new:
+            diff_data.append({'campo': 'Observações', 'antes': obs_old, 'depois': obs_new, 'icon': 'pencil'})
+
+        # --- 6. COMPARAÇÃO DE CENTRO DE CUSTO ---
+        cc_old_id = dados_antigos.get('centro_custo')
+        cc_new_id = apontamento.centro_custo.id if apontamento.centro_custo else None
+        if cc_old_id != cc_new_id:
+            nome_old = get_fk_name(CentroCusto, cc_old_id)
+            nome_new = str(apontamento.centro_custo) if apontamento.centro_custo else "-"
+            diff_data.append({'campo': 'Centro de Custo', 'antes': nome_old, 'depois': nome_new, 'icon': 'map'})
+
+        # --- 7. COMPARAÇÃO DE MODELO VEÍCULO (MANUAL) ---
+        mod_old = str(dados_antigos.get('veiculo_manual_modelo') or '')
+        mod_new = str(apontamento.veiculo_manual_modelo or '')
+        if mod_old != mod_new:
+            diff_data.append({'campo': 'Modelo Veículo (Manual)', 'antes': format_none(mod_old), 'depois': format_none(mod_new), 'icon': 'truck'})
+
+        # --- 8. COMPARAÇÃO DE AUXILIAR PRINCIPAL ---
+        aux_old_id = dados_antigos.get('auxiliar')
+        aux_new_id = apontamento.auxiliar.id if apontamento.auxiliar else None
+        if aux_old_id != aux_new_id:
+            nome_old = get_fk_name(Colaborador, aux_old_id)
+            nome_new = str(apontamento.auxiliar.nome_completo) if apontamento.auxiliar else "-"
+            diff_data.append({'campo': 'Auxiliar Principal', 'antes': nome_old, 'depois': nome_new, 'icon': 'user'})
+
+        # --- 9. COMPARAÇÃO DE DATA DO REGISTRO ---
+        data_old_str = str(dados_antigos.get('data_apontamento'))
+        data_new_str = apontamento.data_apontamento.strftime('%Y-%m-%d')
+        if data_old_str != data_new_str:
+             d_old_fmt = datetime.strptime(data_old_str, '%Y-%m-%d').strftime('%d/%m/%Y')
+             d_new_fmt = apontamento.data_apontamento.strftime('%d/%m/%Y')
+             diff_data.append({'campo': 'Data do Registro', 'antes': d_old_fmt, 'depois': d_new_fmt, 'icon': 'calendar'})
+
+        if diff_data: tem_alteracao = True   
+
+    context = {
+        'apontamento': apontamento,
+        'historico': historico,
+        'diffs': diff_data,
+        'tem_alteracao': tem_alteracao,
+        'duracao_total': apontamento.duracao_total_str if hasattr(apontamento, 'duracao_total_str') else "Calculando...",
+        'usuario_editor': historico.editado_por if historico else None
+    }
+    return render(request, 'produtividade/aprovacao_analise.html', context)
+
+
+@login_required
+@user_passes_test(is_gerente)
+def processar_aprovacao_view(request, pk):
+    if request.method != 'POST': 
+        return redirect('produtividade:aprovacao_dashboard')
+    
+    apontamento = get_object_or_404(Apontamento, pk=pk)
+    acao = request.POST.get('acao')
+    motivo = request.POST.get('motivo_rejeicao', '').strip()
+
+    if not motivo:
+        messages.error(request, "É obrigatório inserir um comentário/motivo para finalizar a análise.")
+        return redirect('produtividade:analise_apontamento', pk=pk)
+
+    if acao == 'APROVAR':
+        apontamento.status_aprovacao = 'APROVADO'
+        apontamento.motivo_rejeicao = motivo 
+        messages.success(request, f"Registro APROVADO com sucesso.")
+    
+    elif acao == 'REJEITAR':
+        apontamento.status_aprovacao = 'REJEITADO'
+        apontamento.motivo_rejeicao = motivo
+        messages.warning(request, f"Registro REJEITADO. O colaborador foi notificado.")
+
+    apontamento.save()
+    
+    return redirect('produtividade:aprovacao_dashboard')

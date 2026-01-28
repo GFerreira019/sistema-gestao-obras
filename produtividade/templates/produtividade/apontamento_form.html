@@ -11,12 +11,13 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <style>
+        /* Estilos Gerais */
         .form-control, select, input[type="text"], input[type="date"], input[type="time"], textarea {
             background-color: #334155; border-color: #475569; color: #e2e8f0;
             border-radius: 0.375rem; padding: 0.5rem; width: 100%; display: block;
         }
         .form-control:focus { outline: 2px solid #6366f1; border-color: #6366f1; }
-        select option { color: #000; background: #fff; }
+        select option { color: #1e293b; color: #e2e8f0; }
         input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: #10b981; cursor: pointer; }
 
         /* Select2 Dark */
@@ -39,6 +40,13 @@
         
         /* Grid do Calendário */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
+
+        /* Estilos Específicos do Rateio */
+        .select2-wrapper-flex { flex: 1 1 auto; min-width: 0; }
+        .tipo-seletor-fixo { width: 90px !important; flex-shrink: 0; }
+        .btn-remover-obra { flex-shrink: 0; width: 40px; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-200 p-4 sm:p-8 flex justify-center">
@@ -60,14 +68,19 @@
 
     <div class="w-full max-w-4xl">
         <div class="mb-6 border-b border-slate-800 pb-4 flex items-center justify-between relative">
-            <div><h2 class="text-3xl font-bold text-white">{{ titulo }}</h2><p class="text-gray-400 text-sm">Relatório de Horas</p></div>
+            <div>
+                <h2 class="text-3xl font-bold text-white">{{ titulo }}</h2>
+                <p class="text-gray-400 text-sm">
+                    {% if is_editing %}Editando Registro #{{ apontamento_id }}{% else %}Novo Apontamento{% endif %}
+                </p>
+            </div>
             <div class="flex items-center gap-4">
-                <a href="{% url 'historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" /></svg>Ver Histórico</a>
+                <a href="{% url 'produtividade:historico_apontamentos' %}" class="text-indigo-400 hover:text-white border border-indigo-400/30 hover:border-indigo-400 bg-indigo-400/10 hover:bg-indigo-400/20 rounded-md px-4 py-2 text-sm font-medium transition-all flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" /></svg>Ver Histórico</a>
                 <div class="relative group z-50">
                     <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg cursor-pointer ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900 shadow-lg hover:bg-indigo-500 transition-colors">{{ user.username|slice:":1"|upper }}</div>
                     <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
                         <div class="px-4 py-3 border-b border-slate-700"><p class="text-sm text-white font-bold truncate">{% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}</p><p class="text-xs text-gray-400 truncate">Conectado</p></div>
-                        <a href="{% url 'configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>Configurações</a>
+                        <a href="{% url 'produtividade:configuracoes' %}" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>Configurações</a>
                         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-b-lg transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 001.5 0v-2A3.75 3.75 0 0010.75.5h-5.5A3.75 3.75 0 001.5 4.25v11.5A3.75 3.75 0 005.25 18h5.5a3.75 3.75 0 003.75-3.75v-2a.75.75 0 00-1.5 0v2A2.25 2.25 0 0110.75 16h-5.5A2.25 2.25 0 013 13.75V4.25z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M15.353 9.47a.75.75 0 00-1.06 0l-1.75 1.75V4.75a.75.75 0 00-1.5 0v6.47l-1.75-1.75a.75.75 0 10-1.06 1.06l3 3a.75.75 0 001.06 0l3-3a.75.75 0 000-1.06z" clip-rule="evenodd" /></svg>Sair do Sistema</button></form>
                     </div>
                 </div>
@@ -77,6 +90,8 @@
         <form method="post" class="space-y-6" id="apontamentoForm">
             {% csrf_token %}
             {{ form.data_dorme_fora }} 
+            {{ form.latitude }}
+            {{ form.longitude }}
             
             <div id="server-error-container" class="hidden">
                 {% if form.non_field_errors %}
@@ -122,6 +137,17 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div><label class="text-xs text-emerald-300 mb-1 block font-bold">Código da Obra (com adendo)</label>{{ form.projeto }}<p class="text-[10px] text-gray-500 mt-1">Ex: R1894A00 - Vintage...</p></div>
                         <div><label class="text-xs text-blue-300 mb-1 block font-bold">Código do Cliente (Geral)</label>{{ form.codigo_cliente }}<p class="text-[10px] text-gray-500 mt-1">Ex: 1894 - Vintage...</p></div>
+                        
+                        {% if form.registrar_multiplas_obras %}
+                            <div class="mt-1 pt-4 border-t border-slate-700 md:col-span-2">
+                                <div class="hidden">{{ form.registrar_multiplas_obras }}</div> 
+                                {{ form.obras_extras_list }}
+                                <div id="obras-extras-wrapper" class="space-y-3 mb-1"></div>
+                                <button type="button" id="btn-add-obra" class="text-xs font-bold text-indigo-400 hover:text-white transition-colors flex items-center gap-1">
+                                    + Add. Obra para Rateio
+                                </button>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div id="insertion-point-obra" class="mt-6"></div>
@@ -224,30 +250,55 @@
 
     <script>
         $(document).ready(function() {
-            $('#id_colaborador').select2({ 
-                placeholder: "Pesquisar Colaborador..." 
-            });
+            // ============================================
+            // 1. INICIALIZAÇÃO DE VARIÁVEIS DO DOM
+            // ============================================
+            const btnAddObra = document.getElementById('btn-add-obra');
+            const wrapperObras = document.getElementById('obras-extras-wrapper');
+            const hiddenObras = document.getElementById('id_obras_extras_list');
+            const hiddenCheckRateio = document.getElementById('id_registrar_multiplas_obras');
+            const placaInput = document.getElementById('id_veiculo_manual_placa');
+            const localSel = document.getElementById('id_local_execucao');
+            const boxObra = document.getElementById('container-obra');
+            const boxFora = document.getElementById('container-fora');
+            const commonBlock = document.getElementById('common-fields-block');
+            const insertObra = document.getElementById('insertion-point-obra');
+            const insertFora = document.getElementById('insertion-point-fora');
+            const inputsWrapper = document.getElementById('inputs-obra-wrapper');
+            const vCheck = document.getElementById('id_registrar_veiculo');
+            const vCont = document.getElementById('veiculo-container');
+            const auxCheck = document.getElementById('id_registrar_auxiliar');
+            const auxWrap = document.querySelector('.aux-wrapper');
+            const mainAux = document.getElementById('id_auxiliar_selecao');
+            const containerExtras = document.getElementById('extras-container');
+            const btnAddExtra = document.getElementById('btn-add-extra');
+            const hiddenList = document.getElementById('id_auxiliares_extras_list');
+            
+            // ============================================
+            // 2. CONFIGURAÇÃO DO SELECT2 E EVENTOS INICIAIS
+            // ============================================
+            
+            if(placaInput) { placaInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); }); }
+
+            $('#id_colaborador').select2({ placeholder: "Pesquisar Colaborador..." });
 
             $('#id_colaborador').on('select2:select', async function (e) {
                 const val = e.params.data.id;
-                
                 if(val) {
                     try {
-                        let urlTemplate = "{% url 'get_colaborador_info' 0 %}";
+                        let urlTemplate = "{% url 'produtividade:get_colaborador_info' 0 %}";
                         const finalUrl = urlTemplate.replace('0', val);
-
                         const r = await fetch(finalUrl);
                         const d = await r.json();
-                        
                         document.getElementById('id_cargo_colaborador').value = d.cargo;
                     } catch (error) {
-                        console.error("Erro ao buscar cargo:", error);
                         document.getElementById('id_cargo_colaborador').value = "-";
                     }
                 } else {
                     document.getElementById('id_cargo_colaborador').value = "-";
                 }
             });
+
             $('#id_veiculo_selecao').select2({ placeholder: "Pesquisar Veículo..." });
             $('#id_local_execucao').select2({ minimumResultsForSearch: Infinity });
             $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true });
@@ -258,13 +309,25 @@
             $('#id_projeto').on('select2:select', function (e) { $('#id_codigo_cliente').val(null).trigger('change'); });
             $('#id_codigo_cliente').on('select2:select', function (e) { $('#id_projeto').val(null).trigger('change'); });
             
-            $('#id_local_execucao').change(function() { setTimeout(function() { $('#id_projeto').select2(); $('#id_codigo_cliente').select2(); $('#id_centro_custo').select2(); }, 100); });
+            $('#id_local_execucao').change(function() { 
+                setTimeout(function() { 
+                    $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true }); 
+                    $('#id_codigo_cliente').select2({ placeholder: "Pesquisar Código do Cliente...", allowClear: true }); 
+                    $('#id_centro_custo').select2({ placeholder: "Pesquisar Centro de Custo / Justificativa..." }); 
+                }, 100); 
+            });
             
             $('#id_veiculo_selecao').on('select2:select', function(e) { toggleNovoVeiculo(e.params.data.id); });
             toggleNovoVeiculo($('#id_veiculo_selecao').val());
+
             function toggleNovoVeiculo(val) {
                 const novoContainer = $('#novo-veiculo-container');
-                if(val === 'OUTRO') { novoContainer.removeClass('hidden'); } else { novoContainer.addClass('hidden'); $('#id_veiculo_manual_modelo').val(''); $('#id_veiculo_manual_placa').val(''); }
+                if(val === 'OUTRO') { novoContainer.removeClass('hidden'); } 
+                else { 
+                    novoContainer.addClass('hidden'); 
+                    $('#id_veiculo_manual_modelo').val(''); 
+                    $('#id_veiculo_manual_placa').val(''); 
+                }
             }
 
             $('#id_centro_custo').on('select2:select', function(e) { checkCentroCusto(e.params.data.id); });
@@ -275,16 +338,18 @@
                 try {
                     const r = await fetch(`/produtividade/api/get-centro-custo-info/${id}/`);
                     const d = await r.json();
-                    const inputsWrapper = document.getElementById('inputs-obra-wrapper');
                     const injectionPoint = document.getElementById('dynamic-obra-injection');
                     const originalParent = document.querySelector('#container-obra'); 
+                    
                     if (d.permite_alocacao) {
                         injectionPoint.appendChild(inputsWrapper);
                         $('#id_projeto').select2({ placeholder: "Pesquisar Código Específico...", allowClear: true });
                         $('#id_codigo_cliente').select2({ placeholder: "Pesquisar Código do Cliente...", allowClear: true });
                     } else {
                         const ref = document.getElementById('insertion-point-obra');
-                        originalParent.insertBefore(inputsWrapper, ref);
+                        if (ref && ref.parentNode) {
+                            ref.parentNode.insertBefore(inputsWrapper, ref);
+                        }
                         if ($('#id_local_execucao').val() === 'EXT') {
                             $('#id_projeto').val(null).trigger('change');
                             $('#id_codigo_cliente').val(null).trigger('change');
@@ -292,44 +357,25 @@
                     }
                 } catch(e) { console.error(e); }
             }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // ... (Resto do DOMContentLoaded mantido, inserindo apenas a nova lógica do DatePicker) ...
-            const placaInput = document.getElementById('id_veiculo_manual_placa');
-            if(placaInput) { placaInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); }); }
-
-            const localSel = document.getElementById('id_local_execucao');
-            const boxObra = document.getElementById('container-obra');
-            const boxFora = document.getElementById('container-fora');
-            const commonBlock = document.getElementById('common-fields-block');
-            const insertObra = document.getElementById('insertion-point-obra');
-            const insertFora = document.getElementById('insertion-point-fora');
-            const inputsWrapper = document.getElementById('inputs-obra-wrapper');
 
             function updateLayout() {
                 const val = $('#id_local_execucao').val();
                 commonBlock.classList.remove('hidden');
                 if(val === 'INT') {
                     boxObra.classList.remove('hidden'); boxFora.classList.add('hidden'); insertObra.appendChild(commonBlock);
-                    const ref = document.getElementById('insertion-point-obra'); boxObra.insertBefore(inputsWrapper, ref);
+                    const ref = document.getElementById('insertion-point-obra'); 
+                    if(ref && inputsWrapper.parentElement !== boxObra) boxObra.insertBefore(inputsWrapper, ref);
                 } else {
                     boxObra.classList.add('hidden'); boxFora.classList.remove('hidden'); insertFora.appendChild(commonBlock);
                 }
             }
+            
             if(localSel) {
                 $('#id_local_execucao').on('change', updateLayout);
-                localSel.addEventListener('change', updateLayout);
                 setTimeout(updateLayout, 50);
             }
 
-            const vCheck = document.getElementById('id_registrar_veiculo');
-            const vCont = document.getElementById('veiculo-container');
             if(vCheck) vCheck.addEventListener('change', () => vCheck.checked ? vCont.classList.remove('hidden') : vCont.classList.add('hidden'));
-
-            const auxCheck = document.getElementById('id_registrar_auxiliar');
-            const auxWrap = document.querySelector('.aux-wrapper');
-            const mainAux = document.getElementById('id_auxiliar_selecao');
 
             if(auxCheck) {
                 const toggleAux = () => { if(auxCheck.checked) { auxWrap.classList.remove('hidden'); if(mainAux.options.length <= 1) loadAuxs(mainAux); } else { auxWrap.classList.add('hidden'); } };
@@ -338,101 +384,182 @@
 
             async function loadAuxs(selectElement, selectedValue = null) {
                 try {
-                    const url = "{% url 'get_auxiliares' %}"; 
+                    const url = "{% url 'produtividade:get_auxiliares' %}"; 
                     const r = await fetch(url);
                     const d = await r.json();
-                    
                     selectElement.innerHTML = '<option value="">Selecione...</option>';
-                    
                     d.auxiliares.forEach(aux => {
                         const option = document.createElement('option');
                         option.value = aux.id;
                         option.textContent = aux.nome_completo; 
-                        
-                        if (selectedValue && String(aux.id) === String(selectedValue)) {
-                            option.selected = true;
-                        }
+                        if (selectedValue && String(aux.id) === String(selectedValue)) { option.selected = true; }
                         selectElement.appendChild(option);
                     });
-                } catch(e) {
-                    console.error("Erro ao carregar auxiliares:", e);
-                }
+                } catch(e) { console.error("Erro ao carregar auxiliares:", e); }
             }
 
-            // ======================================================
-            // CORREÇÃO 2: Lógica de Adicionar Extra
-            // ======================================================
-            const containerExtras = document.getElementById('extras-container');
-            const btnAddExtra = document.getElementById('btn-add-extra');
-            const hiddenList = document.getElementById('id_auxiliares_extras_list');
-
-            // Função auxiliar para criar o HTML do select extra
             async function createExtraSelect(selectedValue = null) {
                 const div = document.createElement('div'); 
                 div.className = "flex items-center gap-2 w-full mb-2"; 
-                
                 const newSel = document.createElement('select'); 
                 newSel.className = "form-control text-sm w-full";
-                
                 const btnRemove = document.createElement('button'); 
                 btnRemove.type = "button"; 
                 btnRemove.innerHTML = "&times;"; 
                 btnRemove.className = "text-red-500 font-bold px-3 text-2xl hover:text-red-400 focus:outline-none";
                 
                 await loadAuxs(newSel, selectedValue);
-                
                 div.append(newSel, btnRemove); 
                 containerExtras.appendChild(div);
 
-                // Inicializa o Select2 neste novo elemento específico
-                $(newSel).select2({
-                    placeholder: "Selecione o Auxiliar Extra...",
-                    width: '100%'
-                });
-
+                $(newSel).select2({ placeholder: "Selecione o Auxiliar Extra...", width: '100%' });
                 $(newSel).on('change', updateHidden); 
-                
-                btnRemove.addEventListener('click', () => { 
-                    $(newSel).select2('destroy'); 
-                    div.remove(); 
-                    updateHidden(); 
-                });
+                btnRemove.addEventListener('click', () => { $(newSel).select2('destroy'); div.remove(); updateHidden(); });
             }
 
-            // Evento do Botão Adicionar
-            if(btnAddExtra) {
-                btnAddExtra.addEventListener('click', async () => {
-                    await createExtraSelect();
-                });
-            }
+            if(btnAddExtra) { btnAddExtra.addEventListener('click', async () => { await createExtraSelect(); }); }
 
             function updateHidden() {
                 const selects = containerExtras.querySelectorAll('select');
                 const vals = Array.from(selects).map(s => s.value).filter(v=>v);
-                hiddenList.value = vals.join(',');
+                if(hiddenList) hiddenList.value = vals.join(',');
             }
 
-            // ======================================================
-            // Recuperar dados ao Editar (Re-hidratar)
-            // ======================================================
-            // Verifica se já existem IDs salvos (modo edição) e recria os selects
-            const savedExtras = hiddenList.value;
+            const savedExtras = hiddenList ? hiddenList.value : '';
             if (savedExtras) {
                 const ids = savedExtras.split(',');
-                ids.forEach(async (id) => {
-                    if(id.trim()) {
-                        await createExtraSelect(id.trim());
-                    }
-                });
-                const auxCheck = document.getElementById('id_registrar_auxiliar');
-                const auxWrap = document.querySelector('.aux-wrapper');
-                if (auxCheck && auxCheck.checked) {
-                    auxWrap.classList.remove('hidden');
-                }
+                ids.forEach(async (id) => { if(id.trim()) await createExtraSelect(id.trim()); });
+                if (auxCheck && auxCheck.checked) auxWrap.classList.remove('hidden');
             }
 
             // ============================================
-            // DATE PICKER LÓGICA ATUALIZADA (FORMATO BR)
+            // 3. LÓGICA DE RATEIO (BLINDADA)
+            // ============================================
+            
+            async function restoreRateioRow(type, id) {
+                if (!wrapperObras) return; // Se não tem permissão, ignora
+
+                const div = document.createElement('div');
+                div.className = "flex flex-row items-center gap-2 bg-slate-800/50 p-2 rounded border border-slate-700 mb-2 w-full";
+
+                const typeSel = document.createElement('select');
+                typeSel.className = "bg-slate-700 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-24 h-[42px] p-1 flex-shrink-0 cursor-pointer";
+                typeSel.innerHTML = '<option value="P">OBRA</option><option value="C">CLIENTE</option>';
+                typeSel.value = type;
+
+                const selectCont = document.createElement('div');
+                selectCont.className = "flex-1 min-w-0";
+                const newSel = document.createElement('select');
+                newSel.className = "form-control w-full input-rateio-target";
+                selectCont.appendChild(newSel);
+
+                const btnRem = document.createElement('button');
+                btnRem.type = "button"; 
+                btnRem.innerHTML = "&times;";
+                btnRem.className = "text-red-500 hover:text-red-400 transition-colors h-[42px] w-10 flex items-center justify-center text-2xl flex-shrink-0";
+
+                div.append(typeSel, selectCont, btnRem);
+                wrapperObras.appendChild(div);
+
+                const isProj = type === 'P';
+                const original = isProj ? document.getElementById('id_projeto') : document.getElementById('id_codigo_cliente');
+                
+                $(newSel).empty().select2({
+                    data: $(original).find('option').map(function() { return {id: $(this).val(), text: $(this).text()}; }).get(),
+                    placeholder: isProj ? "Selecione a Obra..." : "Selecione o Cliente...",
+                    width: '100%' 
+                });
+
+                $(newSel).val(id).trigger('change');
+                $(newSel).on('change', updateHybridHidden);
+                
+                $(typeSel).on('change', function() {
+                    const newType = $(this).val();
+                    const newIsProj = newType === 'P';
+                    const newOriginal = newIsProj ? document.getElementById('id_projeto') : document.getElementById('id_codigo_cliente');
+                    $(newSel).empty().select2({
+                        data: $(newOriginal).find('option').map(function() { return {id: $(this).val(), text: $(this).text()}; }).get(),
+                        placeholder: newIsProj ? "Selecione a Obra..." : "Selecione o Cliente...",
+                        width: '100%'
+                    });
+                    updateHybridHidden();
+                });
+
+                btnRem.onclick = () => { $(newSel).select2('destroy'); div.remove(); updateHybridHidden(); };
+            }
+
+            if (hiddenObras && hiddenObras.value) {
+                const items = hiddenObras.value.split(',');
+                items.forEach(item => {
+                    if(item.includes('_')) {
+                        const [type, id] = item.split('_');
+                        if(type && id) restoreRateioRow(type, id);
+                    }
+                });
+                if(hiddenCheckRateio) hiddenCheckRateio.checked = true;
+            }
+
+            if(btnAddObra) {
+                btnAddObra.addEventListener('click', function() {
+                    const total = wrapperObras.children.length;
+                    if(total >= 9) return alert("Limite de 10 atingido.");
+
+                    const div = document.createElement('div');
+                    div.className = "flex flex-row items-center gap-2 bg-slate-800/50 p-2 rounded border border-slate-700 mb-2 w-full animate-fadeIn";
+
+                    const typeSel = document.createElement('select');
+                    typeSel.className = "bg-slate-700 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-24 h-[42px] p-1 flex-shrink-0 cursor-pointer";
+                    typeSel.innerHTML = '<option value="P">OBRA</option><option value="C">CLIENTE</option>';
+
+                    const selectCont = document.createElement('div');
+                    selectCont.className = "flex-1 min-w-0";
+                    const newSel = document.createElement('select');
+                    newSel.className = "form-control w-full input-rateio-target";
+                    selectCont.appendChild(newSel);
+
+                    const btnRem = document.createElement('button');
+                    btnRem.type = "button"; 
+                    btnRem.innerHTML = "&times;";
+                    btnRem.className = "text-red-500 hover:text-red-400 transition-colors h-[42px] w-10 flex items-center justify-center text-2xl flex-shrink-0";
+
+                    div.append(typeSel, selectCont, btnRem);
+                    wrapperObras.appendChild(div);
+
+                    const loadOptions = () => {
+                        const isProj = typeSel.value === 'P';
+                        const original = isProj ? document.getElementById('id_projeto') : document.getElementById('id_codigo_cliente');
+                        
+                        $(newSel).empty().select2({
+                            data: $(original).find('option').map(function() { return {id: $(this).val(), text: $(this).text()}; }).get(),
+                            placeholder: isProj ? "Selecione a Obra..." : "Selecione o Cliente...",
+                            width: '100%' 
+                        }).on('change', updateHybridHidden);
+                    };
+
+                    $(typeSel).on('change', loadOptions);
+                    loadOptions();
+
+                    btnRem.onclick = () => { $(newSel).select2('destroy'); div.remove(); updateHybridHidden(); };
+                    
+                    if(hiddenCheckRateio) hiddenCheckRateio.checked = true;
+                });
+            }
+
+            function updateHybridHidden() {
+                if (!wrapperObras) return;
+                const rows = wrapperObras.querySelectorAll('div.flex');
+                const vals = Array.from(rows).map(row => {
+                    const type = row.querySelector('select').value;
+                    const id = $(row.querySelector('.input-rateio-target')).val();
+                    return id ? `${type}_${id}` : null;
+                }).filter(v => v);
+                
+                if(hiddenObras) hiddenObras.value = vals.join(',');
+                if(hiddenCheckRateio) hiddenCheckRateio.checked = vals.length > 0;
+            }
+
+            // ============================================
+            // 4. LÓGICA DO DATE PICKER
             // ============================================
             let activeDateInputId = null;
             let pickerDate = new Date();
@@ -449,7 +576,6 @@
             const feedbackText = document.getElementById('data-dorme-fora-feedback');
             const feedbackDisplay = document.getElementById('data-dorme-fora-display');
 
-            // Abrir no click do campo principal
             const mainDateInput = document.getElementById('id_data_apontamento');
             if (mainDateInput) {
                 mainDateInput.addEventListener('click', () => openDateSelector('id_data_apontamento', 'Selecione a Data do Registro'));
@@ -457,23 +583,18 @@
 
             if(plantaoCheck) {
                 plantaoCheck.addEventListener('change', function() {
-                    if (this.checked) {
-                        openDateSelector('id_data_plantao', 'Selecione a Data do Plantão');
-                    } else {
-                        const inputPlantao = document.getElementById('id_data_plantao');
-                        if(inputPlantao) inputPlantao.value = '';
-                        feedbackPlantaoText.classList.add('hidden');
+                    if (this.checked) { openDateSelector('id_data_plantao', 'Selecione a Data do Plantão'); } else { 
+                        const inputPlantao = document.getElementById('id_data_plantao'); if(inputPlantao) inputPlantao.value = ''; 
+                        feedbackPlantaoText.classList.add('hidden'); 
                     }
                 });
             }
 
             if(dormeCheck) {
                 dormeCheck.addEventListener('change', function() {
-                    if (this.checked) {
-                        openDateSelector('id_data_dorme_fora', 'Selecione a Data do Dorme-Fora');
-                    } else {
-                        document.getElementById('id_data_dorme_fora').value = '';
-                        feedbackText.classList.add('hidden');
+                    if (this.checked) { openDateSelector('id_data_dorme_fora', 'Selecione a Data do Dorme-Fora'); } else { 
+                        document.getElementById('id_data_dorme_fora').value = ''; 
+                        feedbackText.classList.add('hidden'); 
                     }
                 });
             }
@@ -481,11 +602,7 @@
             window.openDateSelector = function(inputId, title = "Selecione uma Data") {
                 if (inputId === 'id_data_plantao' || inputId === 'id_data_dorme_fora') {
                     const mainDateVal = document.getElementById('id_data_apontamento').value;
-                    if (!mainDateVal) {
-                        alert("Por favor, preencha a Data do Registro (Início) primeiro.");
-                        return;
-                    }
-                    
+                    if (!mainDateVal) { alert("Por favor, preencha a Data do Registro (Início) primeiro."); return; }
                     const parts = mainDateVal.split('/');
                     pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
                 } else {
@@ -493,11 +610,8 @@
                     if (currVal && currVal.includes('/')) {
                         const parts = currVal.split('/');
                         pickerDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    } else {
-                        pickerDate = new Date();
-                    }
+                    } else { pickerDate = new Date(); }
                 }
-
                 activeDateInputId = inputId;
                 pickerTitle.textContent = title;
                 pickerModal.classList.remove('hidden');
@@ -506,18 +620,8 @@
 
             window.closeDateModal = function() { 
                 pickerModal.classList.add('hidden'); 
-
-                if (activeDateInputId === 'id_data_plantao') {
-                    if (!document.getElementById('id_data_plantao').value) {
-                        plantaoCheck.checked = false;
-                    }
-                }
-
-                if (activeDateInputId === 'id_data_dorme_fora') {
-                    if (!document.getElementById('id_data_dorme_fora').value) {
-                        dormeCheck.checked = false;
-                    }
-                }
+                if (activeDateInputId === 'id_data_plantao' && !document.getElementById('id_data_plantao').value) plantaoCheck.checked = false;
+                if (activeDateInputId === 'id_data_dorme_fora' && !document.getElementById('id_data_dorme_fora').value) dormeCheck.checked = false;
                 activeDateInputId = null;
             }
 
@@ -528,121 +632,88 @@
                 const m = pickerDate.getMonth();
                 const y = pickerDate.getFullYear();
                 pickerLabel.textContent = pickerDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-
                 const firstDay = new Date(y, m, 1).getDay();
                 const daysInMonth = new Date(y, m + 1, 0).getDate();
                 const today = new Date();
-
-                // Pega a data principal para comparação
                 const dataPrincipalStr = document.getElementById('id_data_apontamento').value;
-                
-                // Verifica se estamos no modo "Restrito" (Plantão ou Dorme Fora)
                 const isRestrictedMode = (activeDateInputId === 'id_data_plantao' || activeDateInputId === 'id_data_dorme_fora');
 
-                // Preenche espaços vazios antes do dia 1
                 for(let i=0; i<firstDay; i++) { pickerGrid.appendChild(document.createElement('div')); }
-
                 for(let d=1; d<=daysInMonth; d++) {
                     const el = document.createElement('div');
-                    
                     const currentDate = new Date(y, m, d);
-                    // Zera as horas para comparar datas corretamente
+                    
+                    // Verifica se é HOJE
                     const isToday = currentDate.getDate() === today.getDate() && 
-                                  currentDate.getMonth() === today.getMonth() && 
-                                  currentDate.getFullYear() === today.getFullYear();
+                                    currentDate.getMonth() === today.getMonth() && 
+                                    currentDate.getFullYear() === today.getFullYear();
 
                     const formattedCurrent = `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`;
-                    
-                    // CONFIGURAÇÃO BASE
                     el.className = "h-8 w-8 flex items-center justify-center rounded transition text-sm border border-transparent";
                     el.textContent = d;
-
                     let isClickable = true;
 
-                    // ==========================================================
-                    // LÓGICA DE ESTILOS E BLOQUEIO
-                    // ==========================================================
-                    
                     if (isRestrictedMode) {
-                        // --- MODO RESTRITO (Plantão / Dorme Fora) ---
-                        
+                        // MODO RESTRITO (Plantão/Dorme Fora)
                         if (formattedCurrent === dataPrincipalStr) {
-                            // É A DATA VÁLIDA: Fundo Verde Sólido (Igual legenda "Data Registro")
-                            el.classList.remove('border-transparent');
+                            el.classList.remove('border-transparent'); 
                             el.classList.add('bg-emerald-600', 'text-white', 'font-bold', 'cursor-pointer', 'shadow-md');
                         } else {
-                            // NÃO É A DATA VÁLIDA (Bloqueado)
                             isClickable = false;
                             el.classList.add('cursor-not-allowed');
 
+                            // [RESTAURADO] Mostra 'Hoje' mesmo desabilitado
                             if (isToday) {
-                                // É HOJE (Mas inválido): Borda Azul visível + Opacidade média
-                                // Isso mostra "Hoje" sem confundir que é clicável
                                 el.classList.remove('border-transparent');
                                 el.classList.add('border-blue-500', 'text-blue-400', 'font-bold', 'opacity-60');
                             } else {
-                                // OUTROS DIAS: Apagados
                                 el.classList.add('text-gray-600', 'opacity-20');
                             }
                         }
-                    } 
-                    else {
-                        // --- MODO NORMAL (Seleção Principal) ---
-                        
+                    } else {
+                        // MODO NORMAL (Seleção de Data)
                         el.classList.add('cursor-pointer', 'hover:bg-slate-700');
-                        
                         const currentInputVal = document.getElementById(activeDateInputId).value;
                         const isSelected = currentInputVal === formattedCurrent;
 
                         if (isSelected) {
-                             // Selecionado: Fundo Verde
-                             el.classList.remove('border-transparent');
-                             el.classList.add('bg-emerald-600', 'text-white', 'font-bold', 'shadow-md');
+                            // Selecionado (Verde Sólido)
+                            el.classList.remove('border-transparent'); 
+                            el.classList.add('bg-emerald-600', 'text-white', 'font-bold', 'shadow-md');
                         } else if (isToday) {
-                             // Hoje: Borda Azul
-                             el.classList.remove('border-transparent');
-                             el.classList.add('border-blue-500', 'text-blue-400', 'font-bold');
+                            // [RESTAURADO] Hoje (Borda Azul)
+                            el.classList.remove('border-transparent');
+                            el.classList.add('border-blue-500', 'text-blue-400', 'font-bold');
                         } else {
-                            // Dias comuns
+                            // Dia Comum
                             el.classList.add('text-gray-300');
                         }
                     }
 
-                    // Evento de Clique
                     if (isClickable) {
                         el.onclick = function() {
                             const finalDate = formattedCurrent;
-                            
                             if (activeDateInputId) {
-                                const input = document.getElementById(activeDateInputId);
+                                const input = document.getElementById(activeDateInputId); 
                                 input.value = finalDate;
-
-                                // Feedback visual
-                                if (activeDateInputId === 'id_data_plantao') {
-                                    feedbackPlantaoDisplay.textContent = finalDate;
-                                    feedbackPlantaoText.classList.remove('hidden');
+                                
+                                if (activeDateInputId === 'id_data_plantao') { 
+                                    feedbackPlantaoDisplay.textContent = finalDate; 
+                                    feedbackPlantaoText.classList.remove('hidden'); 
                                 }
-                                if (activeDateInputId === 'id_data_dorme_fora') {
-                                    feedbackDisplay.textContent = finalDate;
-                                    feedbackText.classList.remove('hidden');
+                                if (activeDateInputId === 'id_data_dorme_fora') { 
+                                    feedbackDisplay.textContent = finalDate; 
+                                    feedbackText.classList.remove('hidden'); 
                                 }
                                 
-                                // Limpeza de consistência se mudar a data principal
                                 if (activeDateInputId === 'id_data_apontamento') {
                                     const pInput = document.getElementById('id_data_plantao');
                                     const dInput = document.getElementById('id_data_dorme_fora');
-                                    
-                                    if(pInput && pInput.value && pInput.value !== finalDate) {
-                                        pInput.value = ''; 
-                                        feedbackPlantaoText.classList.add('hidden');
-                                    }
-                                    if(dInput && dInput.value && dInput.value !== finalDate) {
-                                        dInput.value = ''; 
-                                        feedbackText.classList.add('hidden');
-                                    }
+                                    if(pInput && pInput.value && pInput.value !== finalDate) { pInput.value = ''; feedbackPlantaoText.classList.add('hidden'); }
+                                    if(dInput && dInput.value && dInput.value !== finalDate) { dInput.value = ''; feedbackText.classList.add('hidden'); }
                                 }
                             }
-                            pickerModal.classList.add('hidden');
+                            pickerModal.classList.add('hidden'); 
                             activeDateInputId = null;
                         };
                     }
@@ -650,7 +721,9 @@
                 }
             }
 
-            // --- LÓGICA DE SALVAMENTO ---
+            // ============================================
+            // 5. LÓGICA DE SUBMIT/CONFIRMAÇÃO
+            // ============================================
             const btnPreSave = document.getElementById('btn-pre-save');
             const modal = document.getElementById('confirm-modal');
             const modalTitle = document.getElementById('modal-title');
@@ -659,9 +732,10 @@
             const btnConfirmSubmit = document.getElementById('btn-confirm-submit');
             const mainForm = document.getElementById('apontamentoForm');
             window.closeConfirmModal = function() { modal.classList.add('hidden'); }
-            function formatDate(dateStr) { if(!dateStr) return ""; const [y, m, d] = dateStr.split('-'); return `${d}-${m}-${y}`; }
 
             btnPreSave.addEventListener('click', function() {
+                const is_rateio = (wrapperObras && wrapperObras.children.length > 0);
+
                 const data = {
                     colab: $('#id_colaborador').select2('data')[0]?.text || "",
                     colab_id: $('#id_colaborador').val(),
@@ -676,23 +750,11 @@
                     inicio: document.getElementById('id_hora_inicio').value,
                     fim: document.getElementById('id_hora_termino').value,
                     usou_veiculo: document.getElementById('id_registrar_veiculo').checked,
-                    veiculo_id: $('#id_veiculo_selecao').val(),
-                    veiculo_txt: $('#id_veiculo_selecao').select2('data')[0]?.text,
-                    veiculo_novo_mod: document.getElementById('id_veiculo_manual_modelo').value,
-                    veiculo_novo_pla: document.getElementById('id_veiculo_manual_placa').value,
-                    usou_aux: document.getElementById('id_registrar_auxiliar').checked,
-                    aux_princ: $('#id_auxiliar_selecao').select2('data')[0]?.text,
                     em_plantao: document.getElementById('id_em_plantao').checked,
                     data_plantao: document.getElementById('id_data_plantao')?.value,
                     dorme_fora: document.getElementById('id_dorme_fora').checked,
                     data_dorme_fora: document.getElementById('id_data_dorme_fora').value
                 };
-
-                let auxsList = [];
-                if(data.usou_aux) {
-                    if(data.aux_princ && data.aux_princ !== "Selecione...") auxsList.push(data.aux_princ);
-                    document.querySelectorAll('#extras-container select').forEach(s => { const txt = s.options[s.selectedIndex].text; if(txt && txt !== "Selecione...") auxsList.push(txt); });
-                }
 
                 let errors = [];
                 if(!data.colab_id) errors.push("Colaborador é obrigatório.");
@@ -701,42 +763,33 @@
                 if(!data.fim) errors.push("Hora de Término é obrigatória.");
 
                 if(data.local === 'INT') {
-                    if(!data.obra_id && !data.cliente_id) errors.push("Selecione o Código da Obra OU o Código do Cliente.");
-                    if(data.obra_id && data.cliente_id) errors.push("Selecione APENAS UM (Obra ou Cliente), não ambos.");
+                    if(!is_rateio) {
+                        if(!data.obra_id && !data.cliente_id) errors.push("Selecione o Código da Obra OU o Código do Cliente.");
+                        if(data.obra_id && data.cliente_id) errors.push("Selecione APENAS UM (Obra ou Cliente), não ambos.");
+                    } else {
+                        // Se rateio está ativo, deve ter linhas
+                        if(wrapperObras.children.length === 0) errors.push("Adicione ao menos uma obra para o rateio.");
+                    }
                 } else {
                     if(!data.centro_custo_id) errors.push("Centro de Custo / Justificativa é obrigatório.");
                 }
 
                 if(data.em_plantao && !data.data_plantao) errors.push("Selecione a data do Plantão.");
-
                 if(data.dorme_fora && !data.data_dorme_fora) errors.push("Selecione a data do Dorme-Fora.");
 
-                if (data.data_pt && data.inicio && data.fim) {
+                if (data.data_pt && data.data_pt.includes('/') && data.inicio && data.fim) {
                     const parts = data.data_pt.split('/');
                     const day = parseInt(parts[0]);
-                    const month = parseInt(parts[1]) - 1; // Mês 0-11 no JS
+                    const month = parseInt(parts[1]) - 1; 
                     const year = parseInt(parts[2]);
-
                     const [hIni, mIni] = data.inicio.split(':').map(Number);
                     const [hFim, mFim] = data.fim.split(':').map(Number);
-
-                    // Cria objetos Date completos
                     let dtStart = new Date(year, month, day, hIni, mIni);
                     let dtEnd = new Date(year, month, day, hFim, mFim);
-                    
-                    // LÓGICA DA VIRADA: Se Fim < Início, adiciona 1 dia ao Fim
-                    if (dtEnd < dtStart) {
-                        dtEnd.setDate(dtEnd.getDate() + 1);
-                    }
-
-                    const now = new Date(); // Agora
-
-                    if (dtStart > now) {
-                        errors.push("O horário de início não pode ser no futuro.");
-                    }
-                    if (dtEnd > now) {
-                        errors.push("O horário de término não pode ser no futuro.");
-                    }
+                    if (dtEnd < dtStart) { dtEnd.setDate(dtEnd.getDate() + 1); }
+                    const now = new Date(); 
+                    if (dtStart > now) { errors.push("O horário de início não pode ser no futuro."); }
+                    if (dtEnd > now) { errors.push("O horário de término não pode ser no futuro."); }
                 }
 
                 if(errors.length > 0) {
@@ -758,7 +811,8 @@
                     let contextInfo = "";
                     if(data.local === 'INT') {
                         if(data.obra_id) contextInfo = `<span class="text-indigo-300 font-bold">Obra:</span> ${data.obra}`;
-                        else contextInfo = `<span class="text-blue-300 font-bold">Cliente Geral:</span> ${data.cliente_txt}`;
+                        else if(data.cliente_id) contextInfo = `<span class="text-blue-300 font-bold">Cliente Geral:</span> ${data.cliente_txt}`;
+                        else contextInfo = `<span class="text-gray-400 italic">Múltiplas obras selecionadas</span>`;
                     } else {
                         contextInfo = `<span class="text-orange-300 font-bold">Centro Custo:</span> ${data.centro_custo_txt}`;
                         if(data.obra_id) contextInfo += `<br><span class="text-indigo-300 font-bold text-xs pl-2">↳ Alocado na Obra:</span> ${data.obra}`;
@@ -767,6 +821,11 @@
                     let extrasInfo = "";
                     if(data.em_plantao) extrasInfo += `<span class="bg-red-900/50 text-red-300 px-2 py-0.5 rounded text-xs border border-red-800">PLANTÃO (${data.data_plantao || 'Sem data'})</span> `;
                     if(data.dorme_fora) extrasInfo += `<span class="bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded text-xs border border-purple-800">DORME-FORA (${data.data_dorme_fora})</span>`;
+                    
+                    let rateioWarning = "";
+                    if(is_rateio) {
+                        rateioWarning = `<p class="text-indigo-400 font-bold mt-2 italic tracking-tighter uppercase text-[10px] bg-indigo-900/20 p-1 rounded border border-indigo-800/50 text-center">⚠ Modo Rateio Ativado: O tempo será dividido entre as obras selecionadas.</p>`;
+                    }
 
                     let html = `<div class="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-2 text-sm">
                         <p><span class="text-gray-500">Colaborador:</span> <span class="text-white font-bold text-lg block">${data.colab}</span></p>
@@ -774,6 +833,7 @@
                         <div class="py-2 border-y border-slate-700 my-2 space-y-1"><p>${contextInfo}</p></div>
                         <p><span class="text-gray-500">Horário:</span> <span class="text-emerald-400 font-mono font-bold text-base">${data.inicio}</span> até <span class="text-red-400 font-mono font-bold text-base">${data.fim}</span></p>
                         <div class="mt-2">${extrasInfo}</div>
+                        ${rateioWarning}
                         </div>`;
                     modalContent.innerHTML = html;
                     btnConfirmSubmit.classList.remove('hidden');
@@ -783,28 +843,57 @@
 
             btnConfirmSubmit.addEventListener('click', function(e) { 
                 e.preventDefault(); 
-                const formData = new FormData(mainForm);
-                btnConfirmSubmit.textContent = "Enviando...";
-                btnConfirmSubmit.disabled = true;
+                
+                function submitFinalForm() {
+                    const formData = new FormData(mainForm);
+                    
+                    fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(response => { if (response.redirected) { window.location.href = response.url; return; } return response.text().then(html => ({ html, url: response.url })); })
+                    .then(result => {
+                        if (!result) return;
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(result.html, 'text/html');
+                        const errorDiv = doc.querySelector('#server-error-data');
+                        
+                        if (errorDiv) {
+                            const errorMsg = errorDiv.innerHTML;
+                            modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10";
+                            modalIconContainer.innerHTML = `<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`;
+                            modalTitle.textContent = "Erro no Registro";
+                            modalTitle.classList.remove('text-emerald-400'); modalTitle.classList.add('text-red-400');
+                            modalContent.innerHTML = `<div class="text-red-300 bg-red-900/20 p-3 rounded border border-red-800">${errorMsg}</div>`;
+                            btnConfirmSubmit.classList.add('hidden'); btnConfirmSubmit.textContent = "Confirmar e Enviar"; btnConfirmSubmit.disabled = false;
+                        } else { document.open(); document.write(result.html); document.close(); }
+                    })
+                    .catch(err => { 
+                        alert("Erro de comunicação."); 
+                        btnConfirmSubmit.disabled = false; 
+                        btnConfirmSubmit.textContent = "Confirmar e Enviar"; 
+                    });
+                }
 
-                fetch(window.location.href, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(response => { if (response.redirected) { window.location.href = response.url; return; } return response.text().then(html => ({ html, url: response.url })); })
-                .then(result => {
-                    if (!result) return;
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(result.html, 'text/html');
-                    const errorDiv = doc.querySelector('#server-error-data');
-                    if (errorDiv) {
-                        const errorMsg = errorDiv.innerHTML;
-                        modalIconContainer.className = "mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10";
-                        modalIconContainer.innerHTML = `<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`;
-                        modalTitle.textContent = "Erro no Registro";
-                        modalTitle.classList.remove('text-emerald-400'); modalTitle.classList.add('text-red-400');
-                        modalContent.innerHTML = `<div class="text-red-300 bg-red-900/20 p-3 rounded border border-red-800">${errorMsg}</div>`;
-                        btnConfirmSubmit.classList.add('hidden'); btnConfirmSubmit.textContent = "Confirmar e Enviar"; btnConfirmSubmit.disabled = false;
-                    } else { document.open(); document.write(result.html); document.close(); }
-                })
-                .catch(err => { alert("Erro de comunicação."); btnConfirmSubmit.disabled = false; btnConfirmSubmit.textContent = "Confirmar e Enviar"; });
+                btnConfirmSubmit.disabled = true;
+                btnConfirmSubmit.textContent = "Obtendo Localização...";
+
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            document.getElementById('id_latitude').value = position.coords.latitude.toFixed(6);
+                            document.getElementById('id_longitude').value = position.coords.longitude.toFixed(6);
+                            btnConfirmSubmit.textContent = "Enviando...";
+                            submitFinalForm();
+                        },
+                        (error) => {
+                            console.warn("GPS não obtido:", error.message);
+                            btnConfirmSubmit.textContent = "Enviando (Sem GPS)...";
+                            submitFinalForm();
+                        },
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                } else {
+                    btnConfirmSubmit.textContent = "Enviando...";
+                    submitFinalForm();
+                }
             });
         });
     </script>
