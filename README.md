@@ -1,29 +1,29 @@
 # Sistema de Apontamento de Horas (Timesheet)
 
-Sistema web desenvolvido em **Python/Django** para gestão de produtividade e controle de horas em atividades operacionais da empresa. O projeto foca na experiência do usuário, priorizando uma interface amigável e na integridade dos dados, substituindo planilhas manuais por um fluxo digital e responsivo com controle de acesso granular.
+Sistema web desenvolvido em **Python/Django** para gestão de produtividade e controle de horas em atividades operacionais da empresa. O projeto foca na experiência do usuário e na integridade dos dados, substituindo planilhas manuais por um fluxo digital responsivo, com validações de regras de negócio em tempo real.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Django](https://img.shields.io/badge/Django-5.0-green)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-38bdf8)
+![GCP](https://img.shields.io/badge/Google_Cloud-Compute_Engine-orange)
 
 ## Funcionalidades Principais
 
-### 🚀 Gestão Operacional
-* **Apontamento Flexível:** Registro de horas vinculado a **Obra Específica** (com adendo) ou **Código de Cliente Geral** (para setores que não tem informações de adendo), garantindo rastreabilidade de custos.
+### 🚀 Gestão Operacional & Integridade
+* **Apontamento Flexível:** Registro de horas vinculado a **Obra Específica** (com adendo) ou **Código de Cliente Geral**, garantindo rastreabilidade de custos.
+* **Validação Temporal Inteligente:** Bloqueio robusto de datas e horários futuros para evitar fraudes, com suporte nativo a **jornadas noturnas** (virada de dia, ex: 22h às 02h).
 * **Gestão de Veículos:** Seleção de frota cadastrada ou cadastro rápido de veículos externos/alugados durante o apontamento.
-* **Equipes Dinâmicas:** Adição de múltiplos auxiliares (Auxiliares/Oficiais) em um único registro de ponto.
-* **Início da Jornada** Registro do local de início da jornada para conciliação com ponto eletrônico para cálculo de deslocamento.
-* **Histórico Detalhado:** Visualização inteligente que "explode" os registros, mostrando separadamente o colaborador principal e seus auxiliares.
+* **Equipes Dinâmicas:** Adição de múltiplos auxiliares (Auxiliares/Oficiais) em um único registro de ponto ("explode" visualmente no histórico).
 
 ### 📋 Folha e Financeiro
-* **Indicadores de Folha:** Checkboxes específicos para sinalizar **Plantão** e **Pernoite/Diária** (com data específica), agilizando o fechamento mensal.
+* **Indicadores de Folha Simplificados:** Checkboxes para sinalizar **Plantão** e **Pernoite/Diária**. A data desses eventos é vinculada automaticamente à data do registro principal, eliminando erros de preenchimento.
 * **Workflow de Ajustes:** Fluxo de solicitação de correção onde o colaborador justifica o erro e o gestor aprova ou rejeita, mantendo histórico auditável.
-* **Exportação Avançada (Excel):** Geração de relatórios `.xlsx` consolidados, com cálculo automático de horas (incluindo virada de noite) e separação de custos por centro/obra.
+* **Exportação Otimizada (Excel):** Geração de relatórios `.xlsx` limpos e consolidados, com cálculo automático de horas (incluindo virada de noite) e separação de custos por centro/obra/veículo.
 
 ### 🎨 Experiência do Usuário (UX)
-* **Calendário Visual:** Visualização mensal com indicadores de status (Pendente/Preenchido) e ícones para dias com pernoite.
+* **Calendário Visual Interativo:** Visualização mensal com indicadores de status e ícones para dias com pernoite. Ao selecionar datas de plantão, o calendário guia o usuário bloqueando dias inválidos.
 * **Interface Responsiva:** Design *Mobile-First* com Dark Mode nativo utilizando TailwindCSS.
-* **Feedback Imediato:** Modais de confirmação e validação de conflitos de horário (Overlap) em tempo real.
+* **Feedback Imediato:** Validações de conflitos de horário (Overlap) e tentativas de lançamento futuro exibidas instantaneamente via JavaScript antes do envio ao servidor.
 
 ## Controle de Acesso e Permissões (RBAC)
 
@@ -47,9 +47,11 @@ Este projeto é o alicerce (MVP) para um ecossistema maior de gestão de obras. 
 
 * **Backend:** Python 3, Django 5
 * **Frontend:** HTML5, TailwindCSS (CDN), JavaScript Moderno
-* **Bibliotecas:** * `Select2` (Selects pesquisáveis via AJAX)
+* **Infraestrutura:** Google Cloud Platform (Compute Engine), Nginx, Gunicorn
+* **Bibliotecas:**
+    * `Select2` (Selects pesquisáveis via AJAX)
     * `OpenPyXL` (Geração de relatórios Excel)
-* **Banco de Dados:** SQLite (Desenvolvimento)
+* **Banco de Dados:** SQLite (Desenvolvimento) / Configuração pronta para PostgreSQL (Produção)
 
 ## Como Executar o Projeto
 
